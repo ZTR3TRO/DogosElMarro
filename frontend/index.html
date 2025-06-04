@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Amaro - Sistema de Gestión</title>
+    <style>
+        /* Todo el CSS que proporcionaste */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #ff6b35, #f7931e, #ffcc02);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="25" cy="25" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="3" fill="rgba(255,255,255,0.05)"/><circle cx="50" cy="10" r="1.5" fill="rgba(255,255,255,0.08)"/><circle cx="10" cy="60" r="2.5" fill="rgba(255,255,255,0.06)"/><circle cx="90" cy="30" r="1" fill="rgba(255,255,255,0.1)"/></svg>');
+            animation: float 20s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            padding: 50px 40px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 420px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: slideIn 0.8s ease-out;
+            position: relative;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 30px rgba(255, 107, 53, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .logo::before {
+            content: '🌭';
+            font-size: 60px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .brand-name {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .brand-subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .system-title {
+            color: #ff6b35;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e1e1;
+            border-radius: 15px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .form-group input::placeholder {
+            color: #aaa;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(255, 107, 53, 0.4);
+        }
+
+        .login-button:active {
+            transform: translateY(-1px);
+        }
+
+        .login-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .login-button:hover::before {
+            left: 100%;
+        }
+
+        .forgot-password {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .forgot-password a {
+            color: #ff6b35;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-password a:hover {
+            color: #f7931e;
+            text-decoration: underline;
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 30px;
+            color: #888;
+            font-size: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 20px;
+                padding: 40px 30px;
+            }
+            
+            .brand-name {
+                font-size: 28px;
+            }
+            
+            .logo {
+                width: 100px;
+                height: 100px;
+            }
+            
+            .logo::before {
+                font-size: 50px;
+            }
+        }
+
+        .input-icon {
+            position: absolute;
+            right: 15px;
+            top: 38px;
+            color: #aaa;
+            font-size: 18px;
+            pointer-events: none; /* No debería interferir con el clic del ojo */
+        }
+
+        .show-password {
+            cursor: pointer;
+            pointer-events: all; /* Hace que el icono del ojo sea clickeable */
+            transition: color 0.3s ease;
+        }
+
+        .show-password:hover {
+            color: #ff6b35;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-section">
+            <div class="logo"></div>
+            <h1 class="brand-name">El Amaro</h1>
+            <p class="brand-subtitle">Hotdogs Gourmet</p>
+            <p class="system-title">Sistema de Gestión</p>
+        </div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Usuario</label>
+                <input type="text" id="username" name="username" placeholder="Ingresa tu usuario" required>
+                <span class="input-icon">👤</span>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <input type="password" id="password" name="password" placeholder="Ingresa tu contraseña" required>
+                <span class="input-icon show-password" onclick="togglePassword()">👁️</span>
+            </div>
+
+            <button type="submit" class="login-button">Iniciar Sesión</button>
+        </form>
+
+        <div class="forgot-password">
+            <a href="#" onclick="showForgotPassword()">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <div class="footer-text">
+            © 2024 El Amaro Hotdogs - Todos los derechos reservados
+        </div>
+    </div>
+
+    <script>
+        // Función para mostrar/ocultar contraseña
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const icon = document.querySelector('.show-password');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                icon.textContent = '👁️';
+            }
+        }
+
+        // Función para manejar el login
+        document.getElementById('loginForm').addEventListener('submit', async function(e) { // Agregado 'async' aquí
+            e.preventDefault(); // Evita el envío del formulario por defecto
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            const loginButton = document.querySelector('.login-button');
+            const originalButtonText = loginButton.textContent; // Guarda el texto original del botón
+
+            if (!username || !password) {
+                alert('Por favor, ingresa tu usuario y contraseña.');
+                return; // Detiene la función si faltan campos
+            }
+
+            // Cambiar el texto y estilo del botón mientras se procesa
+            loginButton.textContent = 'Iniciando Sesión...';
+            loginButton.disabled = true; // Deshabilita el botón para evitar múltiples clics
+            loginButton.style.background = '#007bff'; // Cambia el color para indicar estado
+
+            try {
+                // Realizar la petición POST al backend
+                const response = await fetch('http://localhost:3000/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json' // Indica que el cuerpo de la petición es JSON
+                    },
+                    body: JSON.stringify({ username, password }) // Envía los datos como JSON
+                });
+
+                const data = await response.json(); // Parsea la respuesta JSON del servidor
+
+                if (response.ok) { // Si la respuesta HTTP es exitosa (200-299)
+                    alert(data.message || '¡Bienvenido al sistema El Amaro!');
+                    // Si el backend enviara un token (aunque no lo estamos haciendo ahora), podrías guardarlo:
+                    // if (data.token) {
+                    //     localStorage.setItem('authToken', data.token);
+                    // }
+                    window.location.href = 'dashboard.html'; // Redirige al dashboard.html
+                } else {
+                    // Si la respuesta no fue exitosa (ej. 401 Unauthorized, 400 Bad Request)
+                    alert(data.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+                    loginButton.style.background = '#dc3545'; // Rojo para error
+                }
+            } catch (error) {
+                // Captura errores de red (ej. servidor no disponible)
+                console.error('Error de red o del servidor:', error);
+                alert('No se pudo conectar con el servidor. Inténtalo de nuevo más tarde.');
+                loginButton.style.background = '#dc3545'; // Rojo para error
+            } finally {
+                // Restablece el botón a su estado original al finalizar (éxito o error)
+                loginButton.textContent = originalButtonText;
+                loginButton.disabled = false;
+                // Restablece el fondo a su gradiente original si no hubo éxito
+                if (loginButton.style.background === 'rgb(220, 53, 69)') { // Color rojo del error
+                    loginButton.style.background = 'linear-gradient(135deg, #ff6b35, #f7931e)';
+                }
+            }
+        });
+
+        // Función para recuperar contraseña (ejemplo, no funcional con backend aún)
+        function showForgotPassword() {
+            const email = prompt('Ingresa tu correo electrónico para recuperar tu contraseña:');
+            if (email) {
+                alert('Se ha enviado un enlace de recuperación a: ' + email);
+            }
+        }
+
+        // Efectos de entrada para los inputs (mantienes los que ya tenías)
+        const inputs = document.querySelectorAll('input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.02)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body>
+</html>

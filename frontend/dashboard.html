@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Amaro - Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #ff6b35; /* Naranja hotdog */
+            --secondary-color: #f7931e; /* Naranja más claro */
+            --accent-color: #ffcc02; /* Amarillo */
+            --dark-color: #333;
+            --light-color: #f4f4f4;
+            --white-color: #fff;
+            --sidebar-width: 250px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--light-color);
+            display: flex;
+            min-height: 100vh;
+            color: var(--dark-color);
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+            color: var(--white-color);
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between; /* Para empujar el logout al final */
+        }
+
+        .sidebar .logo-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .sidebar .logo {
+            width: 80px;
+            height: 80px;
+            background-color: var(--white-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 40px;
+            color: var(--primary-color);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar .brand-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--white-color);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+            flex-grow: 1; /* Permite que el menú ocupe el espacio disponible */
+        }
+
+        .sidebar nav ul li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar nav ul li a {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: var(--white-color);
+            text-decoration: none;
+            font-size: 16px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .sidebar nav ul li a span {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+
+        .sidebar nav ul li a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .sidebar nav ul li a.active {
+            background-color: var(--accent-color);
+            color: var(--dark-color);
+            font-weight: 700;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 30px;
+            background-color: var(--light-color);
+            overflow-y: auto; /* Para permitir scroll si el contenido es largo */
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: var(--dark-color);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+        }
+
+        .user-info span {
+            margin-right: 10px;
+            color: #555;
+        }
+
+        .user-info img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary-color);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background-color: var(--white-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .card h2 {
+            font-size: 22px;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .card h2 span {
+            margin-right: 10px;
+            font-size: 28px;
+        }
+
+        .card p {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+        }
+        .card .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--dark-color);
+            margin-top: 15px;
+        }
+
+        .logout-button {
+            display: block;
+            width: calc(100% - 30px); /* Ajusta para el padding */
+            padding: 12px 15px;
+            margin: 20px auto 0; /* Margen inferior para separarlo */
+            background-color: #dc3545; /* Rojo de salida */
+            color: var(--white-color);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-align: center;
+            text-decoration: none; /* Si se usa como link */
+        }
+
+        .logout-button:hover {
+            background-color: #c82333;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                padding: 15px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            }
+            .sidebar nav ul {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin-top: 15px;
+            }
+            .sidebar nav ul li {
+                margin: 0 5px 10px;
+            }
+            .sidebar nav ul li a {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+            .main-content {
+                padding: 20px;
+            }
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .user-info {
+                margin-top: 15px;
+            }
+            .dashboard-grid {
+                grid-template-columns: 1fr; /* Una columna en pantallas pequeñas */
+            }
+            .logout-button {
+                width: 100%;
+                margin: 15px 0 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo-section">
+            <div class="logo">🌭</div>
+            <h1 class="brand-name">El Amaro</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html" class="active"><span>🏠</span> Dashboard</a></li>
+                <li><a href="inventory.html"><span>📦</span> Inventario</a></li>
+                <li><a href="sales.html"><span>💰</span> Ventas</a></li>
+                <li><a href="users.html"><span>👥</span> Usuarios</a></li>
+                <li><a href="reports.html"><span>📊</span> Reportes</a></li>
+            </ul>
+        </nav>
+        <button class="logout-button" id="logoutButton">Cerrar Sesión</button>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <h1>Bienvenido al Dashboard</h1>
+            <div class="user-info">
+                <span>Hola, Admin</span>
+                <img src="https://via.placeholder.com/40" alt="Avatar de Usuario">
+            </div>
+        </header>
+
+        <section class="dashboard-grid">
+            <div class="card">
+                <h2><span>📦</span> Inventario Actual</h2>
+                <p>Visualiza rápidamente el estado de tus productos. Mantén un control estricto para evitar faltantes y caducidades.</p>
+                <p class="metric-value" id="totalProductsValue">Cargando...</p>
+            </div>
+            <div class="card">
+                <h2><span>📈</span> Ventas del Día</h2>
+                <p>Resumen de las ventas de hoy. Accede a informes detallados para analizar el rendimiento.</p>
+                <p class="metric-value" id="dailySalesValue">Cargando...</p>
+            </div>
+            <div class="card" id="lowStockCard">
+                <h2><span>🔔</span> Alertas Pendientes</h2>
+                <p>Revisa las notificaciones importantes, como stock mínimo o productos próximos a caducar.</p>
+                <p class="metric-value" id="lowStockValue">Cargando...</p>
+            </div>
+            <div class="card">
+                <h2><span>🛒</span> Última Venta</h2>
+                <p>Detalle de la última transacción registrada en el sistema.</p>
+                <p class="metric-value" id="lastSaleValue">Cargando...</p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Lógica para el botón de cerrar sesión
+            const logoutButton = document.getElementById('logoutButton');
+            logoutButton.addEventListener('click', () => {
+                const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
+                if (confirmLogout) {
+                    // En una app real, aquí se borraría cualquier token de sesión (JWT)
+                    // localStorage.removeItem('authToken');
+                    window.location.href = 'index.html'; // Redirige de vuelta a la página de login
+                }
+            });
+
+            // *** LÓGICA CORREGIDA: Cargar datos reales del dashboard ***
+            async function loadDashboardData() {
+                try {
+                    console.log('🔍 Iniciando carga de datos del dashboard...');
+                    const response = await fetch('http://localhost:3000/api/inventory/summary');
+                    
+                    console.log('📡 Respuesta recibida, status:', response.status);
+                    const data = await response.json();
+                    console.log('📊 Datos recibidos:', data);
+
+                    if (response.ok) {
+                        // Actualizar la tarjeta de Inventario Actual
+                        console.log('📦 Actualizando inventario, total productos:', data.totalProducts);
+                        document.getElementById('totalProductsValue').textContent = `${data.totalProducts} Productos`;
+
+                        // Actualizar la tarjeta de Ventas del Día
+                        console.log('💰 Actualizando ventas del día:', data.dailySales);
+                        if (data.dailySales !== null && data.dailySales !== undefined) {
+                            document.getElementById('dailySalesValue').textContent = `$ ${parseFloat(data.dailySales).toFixed(2)}`;
+                        } else {
+                            document.getElementById('dailySalesValue').textContent = '$ 0.00';
+                        }
+
+                        // Actualizar la tarjeta de Alertas Pendientes
+                        console.log('🔔 Actualizando stock bajo:', data.lowStockProduct);
+                        const lowStockCard = document.getElementById('lowStockCard');
+                        const lowStockValue = document.getElementById('lowStockValue');
+                        if (data.lowStockProduct) {
+                            lowStockValue.textContent = `${data.lowStockProduct.nombre_producto} (${data.lowStockProduct.cantidad_disponible} unid.)`;
+                            lowStockCard.querySelector('h2').innerHTML = '<span>🔔</span> Stock Bajo';
+                            lowStockCard.querySelector('p:first-of-type').textContent = 'El siguiente producto requiere atención inmediata por bajo stock:';
+                        } else {
+                            lowStockValue.textContent = 'Sin alertas de stock';
+                            lowStockCard.querySelector('h2').innerHTML = '<span>✔️</span> Sin Alertas';
+                            lowStockCard.querySelector('p:first-of-type').textContent = 'No hay productos con stock mínimo que requieran tu atención.';
+                        }
+
+                        // Actualizar la última venta
+                        console.log('🛒 Actualizando última venta:', data.lastSale);
+                        const lastSaleValue = document.getElementById('lastSaleValue');
+                        if (data.lastSale) {
+                            const precioUnitario = parseFloat(data.lastSale.precio_unitario);
+                            const cantidad = parseFloat(data.lastSale.cantidad);
+                            const totalVenta = precioUnitario * cantidad;
+                            
+                            console.log('💡 Cálculo de venta:', {
+                                precio: precioUnitario,
+                                cantidad: cantidad,
+                                total: totalVenta
+                            });
+                            
+                            lastSaleValue.innerHTML = `
+                                <strong>${data.lastSale.nombre_producto}</strong><br>
+                                Cantidad: ${cantidad}<br>
+                                Total: ${totalVenta.toFixed(2)}
+                            `;
+                        } else {
+                            lastSaleValue.textContent = 'No hay ventas registradas.';
+                        }
+
+                        console.log('✅ Datos del dashboard cargados correctamente');
+                    } else {
+                        console.error('❌ Error al cargar datos del dashboard:', data.message);
+                        alert('No se pudieron cargar algunos datos del dashboard. Inténtalo de nuevo.');
+                    }
+                } catch (error) {
+                    console.error('❌ Error de red al cargar datos del dashboard:', error);
+                    console.error('❌ Detalles del error:', error.stack);
+                    alert('Error de conexión al cargar datos del dashboard.');
+                }
+            }
+
+            // Llamar a la función para cargar datos cuando la página se carga
+            loadDashboardData();
+        });
+    </script>
+</body>
+</html>
