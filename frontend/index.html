@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El Amaro - Sistema de Gestión</title>
+    <title>El Marro - Sistema de Gestión</title>
     <style>
-        /* Todo el CSS que proporcionaste */
+        /* Tu CSS completo */
         * {
             margin: 0;
             padding: 0;
@@ -240,17 +240,31 @@
             top: 38px;
             color: #aaa;
             font-size: 18px;
-            pointer-events: none; /* No debería interferir con el clic del ojo */
+            pointer-events: none;
         }
 
         .show-password {
             cursor: pointer;
-            pointer-events: all; /* Hace que el icono del ojo sea clickeable */
+            pointer-events: all;
             transition: color 0.3s ease;
         }
 
         .show-password:hover {
             color: #ff6b35;
+        }
+
+        /* Estilo para el mensaje de error */
+        .error-message {
+            color: #d32f2f; /* Rojo oscuro para errores */
+            background-color: #ffebee; /* Fondo claro para el error */
+            border: 1px solid #ef9a9a; /* Borde rojo claro */
+            padding: 10px 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+            display: none; /* Oculto por defecto */
+            text-align: center;
         }
     </style>
 </head>
@@ -258,7 +272,7 @@
     <div class="login-container">
         <div class="logo-section">
             <div class="logo"></div>
-            <h1 class="brand-name">El Amaro</h1>
+            <h1 class="brand-name">El Marro</h1>
             <p class="brand-subtitle">Hotdogs Gourmet</p>
             <p class="system-title">Sistema de Gestión</p>
         </div>
@@ -277,14 +291,14 @@
             </div>
 
             <button type="submit" class="login-button">Iniciar Sesión</button>
-        </form>
+            <p id="errorMessage" class="error-message"></p> </form>
 
         <div class="forgot-password">
             <a href="#" onclick="showForgotPassword()">¿Olvidaste tu contraseña?</a>
         </div>
 
         <div class="footer-text">
-            © 2024 El Amaro Hotdogs - Todos los derechos reservados
+            © 2024 El Marro Hotdogs - Todos los derechos reservados
         </div>
     </div>
 
@@ -304,61 +318,68 @@
         }
 
         // Función para manejar el login
-        document.getElementById('loginForm').addEventListener('submit', async function(e) { // Agregado 'async' aquí
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault(); // Evita el envío del formulario por defecto
 
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             
             const loginButton = document.querySelector('.login-button');
-            const originalButtonText = loginButton.textContent; // Guarda el texto original del botón
+            const errorMessageElement = document.getElementById('errorMessage'); // Referencia al elemento de error
+            const originalButtonText = loginButton.textContent;
+
+            // Ocultar mensaje de error al inicio del intento de login
+            errorMessageElement.style.display = 'none';
+            errorMessageElement.textContent = '';
 
             if (!username || !password) {
-                alert('Por favor, ingresa tu usuario y contraseña.');
-                return; // Detiene la función si faltan campos
+                errorMessageElement.textContent = 'Por favor, ingresa tu usuario y contraseña.';
+                errorMessageElement.style.display = 'block';
+                return;
             }
 
             // Cambiar el texto y estilo del botón mientras se procesa
             loginButton.textContent = 'Iniciando Sesión...';
-            loginButton.disabled = true; // Deshabilita el botón para evitar múltiples clics
-            loginButton.style.background = '#007bff'; // Cambia el color para indicar estado
+            loginButton.disabled = true;
+            // Guardamos el gradiente original para restaurarlo si el login es exitoso
+            const originalButtonBackground = loginButton.style.background; 
+            loginButton.style.background = '#007bff'; // Cambia el color para indicar estado de carga
 
             try {
                 // Realizar la petición POST al backend
                 const response = await fetch('http://localhost:3000/api/login', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json' // Indica que el cuerpo de la petición es JSON
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ username, password }) // Envía los datos como JSON
+                    body: JSON.stringify({ username, password })
                 });
 
-                const data = await response.json(); // Parsea la respuesta JSON del servidor
+                const data = await response.json();
 
                 if (response.ok) { // Si la respuesta HTTP es exitosa (200-299)
-                    alert(data.message || '¡Bienvenido al sistema El Amaro!');
-                    // Si el backend enviara un token (aunque no lo estamos haciendo ahora), podrías guardarlo:
-                    // if (data.token) {
-                    //     localStorage.setItem('authToken', data.token);
-                    // }
+                    // console.log(data.message || '¡Bienvenido al sistema El Amaro!'); // Puedes dejar esto para depuración
                     window.location.href = 'dashboard.html'; // Redirige al dashboard.html
                 } else {
                     // Si la respuesta no fue exitosa (ej. 401 Unauthorized, 400 Bad Request)
-                    alert(data.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+                    errorMessageElement.textContent = data.message || 'Error al iniciar sesión. Verifica tus credenciales.';
+                    errorMessageElement.style.display = 'block';
                     loginButton.style.background = '#dc3545'; // Rojo para error
                 }
             } catch (error) {
                 // Captura errores de red (ej. servidor no disponible)
                 console.error('Error de red o del servidor:', error);
-                alert('No se pudo conectar con el servidor. Inténtalo de nuevo más tarde.');
+                errorMessageElement.textContent = 'No se pudo conectar con el servidor. Inténtalo de nuevo más tarde.';
+                errorMessageElement.style.display = 'block';
                 loginButton.style.background = '#dc3545'; // Rojo para error
             } finally {
                 // Restablece el botón a su estado original al finalizar (éxito o error)
                 loginButton.textContent = originalButtonText;
                 loginButton.disabled = false;
-                // Restablece el fondo a su gradiente original si no hubo éxito
-                if (loginButton.style.background === 'rgb(220, 53, 69)') { // Color rojo del error
-                    loginButton.style.background = 'linear-gradient(135deg, #ff6b35, #f7931e)';
+                // Si el color de fondo no es rojo (error), se restaura el gradiente original.
+                // Si es rojo, se mantiene para indicar el error visualmente hasta que el usuario intente de nuevo.
+                if (loginButton.style.background !== 'rgb(220, 53, 69)') { // rgb(220, 53, 69) es el rojo de #dc3545
+                    loginButton.style.background = originalButtonBackground; // Restaura el gradiente original
                 }
             }
         });

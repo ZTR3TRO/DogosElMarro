@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventario - El Marro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+/* CSS COPIADO DIRECTAMENTE DE TU DASHBOARD.HTML Y SALES.HTML PARA CONSISTENCIA */
+:root {
+    --primary-color: #ff6b35; /* Naranja hotdog */
+    --secondary-color: #f7931e; /* Naranja más claro */
+    --accent-color: #ffcc02; /* Amarillo */
+    --dark-color: #333;
+    --light-color: #f4f4f4;
+    --white-color: #fff;
+    --sidebar-width: 250px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--light-color);
+    /* No necesitamos display:flex; aquí, ya que el sidebar es fixed */
+    /* display: flex; */
+    min-height: 100vh; /* Mantener para asegurar que el contenido principal empuje el footer si existe */
+    color: var(--dark-color);
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+    color: var(--white-color);
+    padding: 20px;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Mantiene el logo arriba y el botón de logout abajo */
+
+    /* --- CAMBIOS CLAVE AQUÍ --- */
+    position: fixed; /* Hace que la barra lateral sea fija */
+    top: 0; /* La ancla a la parte superior */
+    left: 0; /* La ancla a la parte izquierda */
+    height: 100vh; /* Ocupa toda la altura de la ventana */
+    /* --- FIN CAMBIOS CLAVE --- */
+}
+
+.sidebar .logo-section {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.sidebar .logo {
+    width: 80px;
+    height: 80px;
+    background-color: var(--white-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 40px;
+    color: var(--primary-color);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar .brand-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--white-color);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar nav ul {
+    list-style: none;
+    flex-grow: 1; /* Permite que el menú crezca y empuje el botón de logout hacia abajo */
+}
+
+.sidebar nav ul li {
+    margin-bottom: 10px;
+}
+
+.sidebar nav ul li a {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    color: var(--white-color);
+    text-decoration: none;
+    font-size: 16px;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.sidebar nav ul li a span {
+    margin-right: 10px;
+    font-size: 20px;
+}
+
+.sidebar nav ul li a:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+}
+
+.sidebar nav ul li a.active {
+    background-color: var(--accent-color);
+    color: var(--dark-color);
+    font-weight: 700;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.logout-button {
+    background-color: #f44336; /* Color rojo para cerrar sesión */
+    color: var(--white-color);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: center;
+    transition: background-color 0.3s ease;
+    margin-top: 20px; /* Espacio con el menú */
+}
+
+.logout-button:hover {
+    background-color: #d32f2f;
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 30px;
+    background-color: var(--light-color);
+    overflow-y: auto;
+    /* --- CAMBIO CLAVE AQUÍ --- */
+    margin-left: var(--sidebar-width); /* Mueve el contenido principal a la derecha */
+    /* --- FIN CAMBIO CLAVE --- */
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.header h1 {
+    font-size: 28px;
+    color: var(--dark-color);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+}
+
+.user-info span {
+    margin-right: 10px;
+    color: #555;
+}
+
+.user-info img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary-color);
+}
+
+/* --- Estilos específicos para las tarjetas y formularios --- */
+.content-area {
+    display: grid;
+    grid-template-columns: 1fr; /* Por defecto una columna */
+    gap: 25px;
+}
+
+@media (min-width: 992px) {
+    .content-area {
+        grid-template-columns: 1fr 1fr; /* Dos columnas en pantallas grandes */
+    }
+}
+
+.card {
+    background-color: var(--white-color);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 8px;
+    margin-bottom: 15px;
+}
+
+.card-header h2 {
+    font-size: 22px;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+}
+
+.card-header h2 i {
+    margin-right: 10px;
+    font-size: 28px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #555;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-control, .form-select {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #495057;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: .25rem;
+    transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+.form-control:focus, .form-select:focus {
+    color: #495057;
+    background-color: #fff;
+    border-color: var(--primary-color);
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(255, 107, 53, 0.25);
+}
+
+.btn {
+    display: inline-block;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--white-color);
+    text-align: center;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: .25rem;
+    transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+}
+
+.btn-primary {
+    color: var(--white-color);
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #e65c2b;
+    border-color: #e65c2b;
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+    border-color: #117a8b;
+}
+
+.btn-sm {
+    padding: .25rem .5rem;
+    font-size: .875rem;
+    border-radius: .2rem;
+}
+
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: var(--dark-color);
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border-top: 1px solid #dee2e6;
+}
+
+.table thead th {
+    vertical-align: bottom;
+    border-bottom: 2px solid #dee2e6;
+    background-color: var(--primary-color);
+    color: var(--white-color);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.table-hover tbody tr:hover {
+    color: var(--dark-color);
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+.text-end { text-align: right; }
+.text-center { text-align: center; }
+.text-muted { color: #6c757d; }
+.text-danger { color: #dc3545; }
+.text-success { color: #28a745; }
+.fw-bold { font-weight: 700; }
+.mt-2 { margin-top: 0.5rem !important; }
+.mt-3 { margin-top: 1rem !important; }
+.mt-4 { margin-top: 1.5rem !important; }
+.mb-3 { margin-bottom: 1rem !important; }
+.mb-4 { margin-bottom: 1.5rem !important; }
+.w-100 { width: 100% !important; }
+
+/* --- Estilos para Toast y Modales (copiados de sales.html) --- */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.toast {
+    background-color: #333;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+    transform: translateX(100%);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    min-width: 250px;
+    display: flex;
+    align-items: center;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+.toast.hide {
+    opacity: 0;
+    transform: translateX(100%);
+}
+.toast.success { background-color: #28a745; }
+.toast.error { background-color: #dc3545; }
+.toast.warning { background-color: #ffc107; color: #333;}
+.toast.info { background-color: #17a2b8; }
+.toast i { margin-right: 8px; }
+
+/* Basic Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 600px; /* Un poco más ancho para recetas */
+    text-align: center;
+    position: relative;
+}
+.modal-content h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+.modal-content p {
+    margin-bottom: 20px;
+    color: #555;
+}
+.modal-buttons button {
+    margin: 0 10px;
+}
+.modal-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #888;
+}
+.modal-close-btn:hover {
+    color: var(--primary-color);
+}
+
+/* Recipe Management Specific Styles */
+#recipeInsumosList {
+    list-style: none;
+    padding: 0;
+    margin-top: 15px;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 8px;
+}
+#recipeInsumosList li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+}
+#recipeInsumosList li:last-child {
+    border-bottom: none;
+}
+#recipeInsumosList li span {
+    flex-grow: 1;
+    text-align: left;
+}
+#recipeInsumosList li .btn {
+    margin-left: 10px;
+}
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo-section">
+            <div class="logo">📦</div>
+            <h1 class="brand-name">El Marro</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html"><span>🏠</span> Dashboard</a></li>
+                <li class="active"><a href="inventory.html"><span>📦</span> Inventario</a></li>
+                <li><a href="sales.html"><span>💰</span> Punto de Venta</a></li>
+                <li><a href="users.html"><span>👥</span> Usuarios</a></li>
+                <li><a href="reports.html"><span>📊</span> Reportes</a></li>
+            </ul>
+        </nav>
+        <button class="logout-button" id="logoutButton">Cerrar Sesión</button>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <h1 id="welcomeMessage">Gestión de Inventario</h1>
+            <div class="user-info">
+                <span id="userInfoName">Hola, Admin</span>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <section class="card product-form-section">
+                <div class="card-header">
+                    <h2><i class="fas fa-plus-circle"></i> Añadir/Editar Producto</h2>
+                </div>
+                <div class="card-body">
+                    <form id="productForm">
+                        <input type="hidden" id="productId" name="productId">
+                        <div class="form-group">
+                            <label for="nombreProducto" class="form-label">Nombre del Producto:</label>
+                            <input type="text" id="nombreProducto" name="nombreProducto" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="descripcionProducto" class="form-label">Descripción:</label>
+                            <textarea id="descripcionProducto" name="descripcionProducto" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="categoriaId" class="form-label">Categoría:</label>
+                            <select id="categoriaId" name="categoriaId" class="form-select" required>
+                                </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="unidadMedida" class="form-label">Unidad de Medida:</label>
+                            <select id="unidadMedida" name="unidadMedida" class="form-select" required>
+                                <option value="">Seleccione...</option>
+                                <option value="unidad">Unidad</option>
+                                <option value="kg">Kilogramos (kg)</option>
+                                <option value="gramos">Gramos (gr)</option>
+                                <option value="litro">Litro (L)</option>
+                                <option value="ml">Mililitros (ml)</option>
+                                <option value="paquete">Paquete</option>
+                                <option value="pieza">Pieza</option>
+                                <option value="porción">Porción</option>
+                                </select>
+                        </div>
+                        <div class="form-group" id="group_precio_compra"> <label for="precioCompra" class="form-label">Precio de Compra:</label>
+                            <input type="number" id="precioCompra" name="precioCompra" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="precioVenta" class="form-label">Precio de Venta:</label>
+                            <input type="number" id="precioVenta" name="precioVenta" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="form-group" id="stockFields">
+                            <label for="cantidadDisponible" class="form-label">Cantidad Disponible:</label>
+                            <input type="number" id="cantidadDisponible" name="cantidadDisponible" class="form-control" step="0.01" required>
+                            <label for="stockMinimo" class="form-label mt-2">Stock Mínimo:</label>
+                            <input type="number" id="stockMinimo" name="stockMinimo" class="form-control" step="0.01" required>
+                        </div>
+                        <div class="form-group" id="group_fecha_caducidad"> <label for="fechaCaducidad" class="form-label">Fecha de Caducidad:</label>
+                            <input type="date" id="fechaCaducidad" name="fechaCaducidad" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-save"></i> Guardar Producto</button>
+                        <button type="button" class="btn btn-info w-100 mt-2" id="clearFormBtn"><i class="fas fa-eraser"></i> Limpiar Formulario</button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="card recipe-management-section">
+                <div class="card-header">
+                    <h2><i class="fas fa-book-open"></i> Gestión de Recetas</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="selectPlatilloForRecipe" class="form-label">Seleccionar Platillo:</label>
+                        <select id="selectPlatilloForRecipe" class="form-select">
+                            </select>
+                    </div>
+                    <button class="btn btn-success w-100 mt-3" id="manageRecipeBtn"><i class="fas fa-pizza-slice"></i> Administrar Receta</button>
+                    <p class="text-muted mt-3">Selecciona un platillo para ver o editar su receta.</p>
+                </div>
+            </section>
+        </div>
+
+        <section class="card mt-4">
+            <div class="card-header">
+                <h2><i class="fas fa-list-alt"></i> Listado de Productos</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="filterCategory" class="form-label">Filtrar por Categoría:</label>
+                    <select id="filterCategory" class="form-select">
+                        <option value="">Todas las Categorías</option>
+                        </select>
+                </div>
+                <div class="form-group mt-3">
+                    <label for="productSearch" class="form-label">Buscar Producto:</label>
+                    <input type="text" id="productSearch" class="form-control" placeholder="Buscar por nombre...">
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Cant. Disp.</th>
+                                <th>Stock Mín.</th>
+                                <th>U. Medida</th>
+                                <th>Precio Venta</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody">
+                            <tr><td colspan="8" class="text-center text-muted">Cargando productos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="modalContainer"></div>
+
+    <div id="recipeModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="closeModal()">&times;</button>
+            <h3 id="recipeModalTitle">Receta para: <span id="currentPlatilloName"></span></h3>
+
+            <div class="form-group">
+                <label for="insumoSelect" class="form-label">Añadir Insumo:</label>
+                <select id="insumoSelect" class="form-select">
+                    </select>
+            </div>
+            <div class="form-group">
+                <label for="insumoQuantity" class="form-label">Cantidad Requerida:</label>
+                <input type="number" id="insumoQuantity" class="form-control" step="0.01" min="0.01">
+            </div>
+            <div class="form-group">
+                <label for="insumoUnit" class="form-label">Unidad de Medida (Receta):</label>
+                <input type="text" id="insumoUnit" class="form-control" placeholder="Ej. kg, unidad, ml">
+            </div>
+            <button class="btn btn-success mt-3" id="addInsumoToRecipeBtn"><i class="fas fa-plus"></i> Añadir a Receta</button>
+
+            <h4 class="mt-4">Insumos de la Receta:</h4>
+            <ul id="recipeInsumosList">
+                <li class="text-muted text-center">No hay insumos en esta receta.</li>
+            </ul>
+        </div>
+    </div>
+
+
+    <script>
+        // --- Variables y Utilidades Comunes ---
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'MXN',
+                minimumFractionDigits: 2,
+            }).format(amount);
+        };
+
+        const formatDate = (dateString) => {
+            if (!dateString) return 'N/A';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            try {
+                const date = new Date(dateString);
+                // Asegurarse de que la fecha sea válida antes de formatear
+                if (isNaN(date.getTime())) {
+                    return 'Fecha Inválida';
+                }
+                return date.toLocaleDateString('es-MX', options);
+            } catch (e) {
+                console.error("Error al formatear fecha:", dateString, e);
+                return 'Fecha Inválida';
+            }
+        };
+
+        // --- Funciones para Modales y Toasts ---
+        const showToast = (type, message, duration = 3000) => {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i><span>${message}</span>`;
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+            }, duration);
+        };
+
+        const showModal = (type, title, message) => {
+            const modalContainer = document.getElementById('modalContainer');
+            modalContainer.innerHTML = `
+                <div class="modal-overlay">
+                    <div class="modal-content">
+                        <h3>${title}</h3>
+                        <p>${message}</p>
+                        <div class="modal-buttons">
+                            <button class="btn btn-primary" onclick="closeModal()">Aceptar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalContainer.style.display = 'flex';
+        };
+
+        const showConfirmModal = (title, message, onConfirm, onCancel = () => {}) => {
+            const modalContainer = document.getElementById('modalContainer');
+            modalContainer.innerHTML = `
+                <div class="modal-overlay">
+                    <div class="modal-content">
+                        <h3>${title}</h3>
+                        <p>${message}</p>
+                        <div class="modal-buttons">
+                            <button class="btn btn-danger" id="modalConfirmCancel">Cancelar</button>
+                            <button class="btn btn-success" id="modalConfirmAccept">Aceptar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            modalContainer.style.display = 'flex';
+
+            document.getElementById('modalConfirmAccept').onclick = () => {
+                onConfirm();
+                closeModal();
+            };
+            document.getElementById('modalConfirmCancel').onclick = () => {
+                onCancel();
+                closeModal();
+            };
+        };
+
+        const closeModal = () => {
+            document.getElementById('modalContainer').innerHTML = '';
+            document.getElementById('modalContainer').style.display = 'none';
+            document.getElementById('recipeModal').style.display = 'none';
+        };
+
+        // --- Lógica de "Autenticación" Simplificada para Demostración ---
+        const checkLogin = () => {
+            let loggedInUser = localStorage.getItem('loggedInUser');
+            let user;
+
+            if (!loggedInUser) {
+                // Si no hay usuario logueado, simular un usuario de demostración
+                user = { id: 1, username: 'Admin Demostración' };
+                localStorage.setItem('loggedInUser', JSON.stringify(user));
+                console.log('Usuario de demostración establecido en localStorage.');
+            } else {
+                user = JSON.parse(loggedInUser);
+            }
+
+            document.getElementById('userInfoName').textContent = `Hola, ${user.username}`;
+            document.getElementById('welcomeMessage').textContent = `Gestión de Inventario - ${user.username}`;
+        };
+
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', () => {
+                localStorage.removeItem('loggedInUser');
+                window.location.reload(); // Recargar la página para volver al estado inicial o login
+            });
+        }
+
+        // --- Lógica Específica de Inventario y Recetas (DECLARACIÓN DE CONSTANTES DEL DOM) ---
+        const productForm = document.getElementById('productForm');
+        const productsTableBody = document.getElementById('productsTableBody');
+        const clearFormBtn = document.getElementById('clearFormBtn');
+        const productIdField = document.getElementById('productId');
+
+        const nombreProductoField = document.getElementById('nombreProducto');
+        const descripcionProductoField = document.getElementById('descripcionProducto');
+        const categoriaIdSelect = document.getElementById('categoriaId');
+        const unidadMedidaField = document.getElementById('unidadMedida');
+        const precioCompraField = document.getElementById('precioCompra');
+        const precioVentaField = document.getElementById('precioVenta');
+        const cantidadDisponibleField = document.getElementById('cantidadDisponible');
+        const stockMinimoField = document.getElementById('stockMinimo');
+        const fechaCaducidadField = document.getElementById('fechaCaducidad');
+        const stockFieldsDiv = document.getElementById('stockFields');
+
+        const groupPrecioCompra = document.getElementById('group_precio_compra');
+        const groupFechaCaducidad = document.getElementById('group_fecha_caducidad');
+
+        const filterCategorySelect = document.getElementById('filterCategory');
+        const productSearchInput = document.getElementById('productSearch');
+
+        const selectPlatilloForRecipe = document.getElementById('selectPlatilloForRecipe');
+        const manageRecipeBtn = document.getElementById('manageRecipeBtn');
+        const recipeModal = document.getElementById('recipeModal');
+        const currentPlatilloName = document.getElementById('currentPlatilloName');
+        const insumoSelect = document.getElementById('insumoSelect');
+        const insumoQuantityInput = document.getElementById('insumoQuantity');
+        const insumoUnitInput = document.getElementById('insumoUnit');
+        const addInsumoToRecipeBtn = document.getElementById('addInsumoToRecipeBtn');
+        const recipeInsumosList = document.getElementById('recipeInsumosList');
+
+        let allCategories = [];
+        let allProducts = [];
+        let allInsumos = []; // Para los insumos disponibles en el modal de recetas
+        let selectedPlatilloIdForRecipe = null;
+
+
+        // --- Funciones de Carga de Datos y Lógica de UI ---
+
+        function updateProductFormFields() {
+            const selectedCategoryId = categoriaIdSelect.value;
+            const selectedCategory = allCategories.find(cat => String(cat.id) === selectedCategoryId);
+            const isPlatillo = selectedCategory && selectedCategory.nombre_categoria === 'Platillos';
+
+            if (isPlatillo) {
+                groupPrecioCompra.style.display = 'none';
+                stockFieldsDiv.style.display = 'none';
+                groupFechaCaducidad.style.display = 'none';
+
+                // Limpiar y desrequerir campos para platillos
+                precioCompraField.value = '';
+                cantidadDisponibleField.value = '';
+                stockMinimoField.value = '';
+                fechaCaducidadField.value = ''; // Limpiar también la fecha de caducidad
+
+                precioCompraField.removeAttribute('required');
+                cantidadDisponibleField.removeAttribute('required');
+                stockMinimoField.removeAttribute('required');
+                // La unidad de medida para platillos puede ser "unidad" por defecto
+                if (unidadMedidaField.value === '') {
+                    unidadMedidaField.value = 'unidad';
+                }
+            } else {
+                groupPrecioCompra.style.display = '';
+                stockFieldsDiv.style.display = '';
+                groupFechaCaducidad.style.display = '';
+
+                precioCompraField.setAttribute('required', 'required');
+                cantidadDisponibleField.setAttribute('required', 'required');
+                stockMinimoField.setAttribute('required', 'required');
+                // Si cambia de platillo a otro, resetear unidad de medida a la opción por defecto
+                if (unidadMedidaField.value === 'unidad') {
+                    unidadMedidaField.value = ''; // O la opción que consideres por defecto para insumos/bebidas
+                }
+            }
+        }
+
+        categoriaIdSelect.addEventListener('change', updateProductFormFields);
+
+
+        const loadCategories = async () => {
+            try {
+                const response = await fetch('http://localhost:3000/api/categories');
+                if (!response.ok) throw new Error('Error al cargar categorías');
+                allCategories = await response.json();
+
+                categoriaIdSelect.innerHTML = '<option value="">Selecciona una categoría</option>';
+                filterCategorySelect.innerHTML = '<option value="">Todas las Categorías</option>';
+                allCategories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.nombre_categoria;
+                    categoriaIdSelect.appendChild(option);
+
+                    const filterOption = document.createElement('option');
+                    filterOption.value = cat.nombre_categoria;
+                    filterOption.textContent = cat.nombre_categoria;
+                    filterCategorySelect.appendChild(filterOption);
+                });
+                // Ejecutar la lógica de campos del formulario después de cargar las categorías
+                updateProductFormFields();
+                loadPlatillosForRecipe(); // Cargar platillos para el selector de recetas
+                loadInsumosForRecipe(); // Cargar insumos para el selector de insumos en receta
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                showToast('error', 'No se pudieron cargar las categorías.');
+            }
+        };
+
+        const loadPlatillosForRecipe = async () => {
+            selectPlatilloForRecipe.innerHTML = '<option value="">Selecciona un platillo</option>';
+            const platilloCategory = allCategories.find(cat => cat.nombre_categoria === 'Platillos');
+            if (platilloCategory) {
+                try {
+                    const response = await fetch(`http://localhost:3000/api/inventory?category=${platilloCategory.nombre_categoria}`);
+                    if (!response.ok) throw new Error('Error al cargar platillos');
+                    const data = await response.json();
+                    data.products.forEach(platillo => {
+                        const option = document.createElement('option');
+                        option.value = platillo.id;
+                        option.textContent = platillo.nombre_producto;
+                        selectPlatilloForRecipe.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Error loading platillos for recipe:', error);
+                    showToast('error', 'No se pudieron cargar los platillos para recetas.');
+                }
+            }
+        };
+
+        const loadInsumosForRecipe = async () => {
+            insumoSelect.innerHTML = '<option value="">Selecciona un insumo</option>';
+            const insumoCategory = allCategories.find(cat => cat.nombre_categoria === 'Insumos');
+            const bebidaCategory = allCategories.find(cat => cat.nombre_categoria === 'Bebidas');
+
+            try {
+                let insumosResponse = await fetch(`http://localhost:3000/api/inventory?category=Insumos`);
+                if (!insumosResponse.ok) throw new Error('Error al cargar insumos');
+                let insumosData = await insumosResponse.json();
+                allInsumos = insumosData.products;
+
+                if (bebidaCategory) {
+                    let bebidasResponse = await fetch(`http://localhost:3000/api/inventory?category=Bebidas`);
+                    if (!bebidasResponse.ok) throw new Error('Error al cargar bebidas');
+                    let bebidasData = await bebidasResponse.json();
+                    allInsumos = allInsumos.concat(bebidasData.products);
+                }
+
+                allInsumos.forEach(insumo => {
+                    const option = document.createElement('option');
+                    option.value = insumo.id;
+                    option.textContent = `${insumo.nombre_producto} (${insumo.unidad_medida})`;
+                    insumoSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading insumos for recipe:', error);
+                showToast('error', 'No se pudieron cargar los insumos para recetas.');
+            }
+        };
+
+
+        const fetchProducts = async () => {
+            productsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Cargando productos...</td></tr>';
+            const searchTerm = productSearchInput.value;
+            const categoryFilter = filterCategorySelect.value;
+            try {
+                const queryParams = new URLSearchParams();
+                if (searchTerm) queryParams.append('search', searchTerm);
+                if (categoryFilter) queryParams.append('category', categoryFilter);
+
+                const response = await fetch(`http://localhost:3000/api/inventory?${queryParams.toString()}`);
+                if (!response.ok) throw new Error('Error al cargar productos');
+                const data = await response.json();
+                allProducts = data.products; // Actualizar la lista global de productos
+                renderProductsTable(allProducts);
+            } catch (error) {
+                console.error('Error fetching products:', error);
+                showToast('error', 'No se pudieron cargar los productos.');
+                productsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-danger">Error al cargar productos.</td></tr>';
+            }
+        };
+
+        const renderProductsTable = (products) => {
+            productsTableBody.innerHTML = '';
+            if (products.length === 0) {
+                productsTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No hay productos que coincidan con los filtros.</td></tr>';
+                return;
+            }
+
+            products.forEach(product => {
+                const row = document.createElement('tr');
+                const isPlatillo = product.category_name === 'Platillos';
+                const cantidadDisplay = isPlatillo ? 'N/A (Receta)' : `${product.cantidad_disponible || 0} ${product.unidad_medida}`;
+                const stockMinimoDisplay = isPlatillo ? 'N/A' : `${product.stock_minimo || 0} ${product.unidad_medida}`;
+
+                row.innerHTML = `
+                    <td>${product.id}</td>
+                    <td>${product.nombre_producto}</td>
+                    <td>${product.category_name}</td>
+                    <td>${cantidadDisplay}</td>
+                    <td>${stockMinimoDisplay}</td>
+                    <td>${product.unidad_medida}</td>
+                    <td>${formatCurrency(product.precio_venta)}</td>
+                    <td class="actions">
+                        <button class="btn btn-info btn-sm" onclick="editProduct(${product.id})"><i class="fas fa-edit"></i> Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="confirmDeleteProduct(${product.id}, '${product.nombre_producto}')"><i class="fas fa-trash-alt"></i> Eliminar</button>
+                    </td>
+                `;
+                productsTableBody.appendChild(row);
+            });
+        };
+
+        const clearProductForm = () => {
+            productIdField.value = '';
+            nombreProductoField.value = '';
+            descripcionProductoField.value = '';
+            categoriaIdSelect.value = ''; // Resetear a la opción por defecto
+            unidadMedidaField.value = ''; // Resetear a la opción por defecto
+            precioCompraField.value = '';
+            precioVentaField.value = '';
+            cantidadDisponibleField.value = '';
+            stockMinimoField.value = '';
+            fechaCaducidadField.value = ''; // Limpiar la fecha
+            updateProductFormFields(); // Actualizar visibilidad de campos después de limpiar
+            showToast('info', 'Formulario limpiado.');
+        };
+
+        const editProduct = (id) => {
+            const product = allProducts.find(p => p.id === id);
+            if (product) {
+                productIdField.value = product.id;
+                nombreProductoField.value = product.nombre_producto;
+                descripcionProductoField.value = product.descripcion || '';
+                categoriaIdSelect.value = product.categoria_id;
+                unidadMedidaField.value = product.unidad_medida;
+                precioCompraField.value = product.precio_compra || '';
+                precioVentaField.value = product.precio_venta;
+                cantidadDisponibleField.value = product.cantidad_disponible || '';
+                stockMinimoField.value = product.stock_minimo || '';
+                fechaCaducidadField.value = product.fecha_caducidad ? product.fecha_caducidad.split('T')[0] : ''; // Formato YYYY-MM-DD
+                updateProductFormFields(); // Asegurarse de que los campos correctos se muestren/oculten
+                window.scrollTo({ top: 0, behavior: 'smooth' }); // Subir al formulario
+                showToast('info', `Editando producto: ${product.nombre_producto}`);
+            } else {
+                showToast('error', 'Producto no encontrado para editar.');
+            }
+        };
+
+        const confirmDeleteProduct = (id, name) => {
+            showConfirmModal(
+                'Confirmar Eliminación',
+                `¿Estás seguro de que quieres eliminar el producto "${name}"? Esta acción es irreversible.`,
+                async () => {
+                    try {
+                        const response = await fetch(`http://localhost:3000/api/inventory/${id}`, {
+                            method: 'DELETE',
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            showToast('success', result.message);
+                            fetchProducts(); // Recargar la tabla
+                            clearProductForm(); // Limpiar el formulario por si se estaba editando
+                        } else {
+                            showToast('error', `Error: ${result.message || 'No se pudo eliminar el producto.'}`);
+                        }
+                    } catch (error) {
+                        console.error('Error deleting product:', error);
+                        showToast('error', 'Ocurrió un error al intentar eliminar el producto.');
+                    }
+                }
+            );
+        };
+
+        // --- Manejo del Formulario de Productos (Añadir/Editar) ---
+        productForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = productIdField.value;
+            const nombre_producto = nombreProductoField.value;
+            const descripcion = descripcionProductoField.value || null;
+            const categoria_id = categoriaIdSelect.value;
+            const unidad_medida = unidadMedidaField.value;
+            const precio_compra = parseFloat(precioCompraField.value);
+            const precio_venta = parseFloat(precioVentaField.value);
+            const cantidad_disponible = parseFloat(cantidadDisponibleField.value);
+            const stock_minimo = parseFloat(stockMinimoField.value);
+            // Asegurarse de que fechaCaducidad sea null si está vacía
+            const fecha_caducidad = fechaCaducidadField.value === '' ? null : fechaCaducidadField.value;
+
+            // Validaciones adicionales en el frontend
+            if (!nombre_producto || !categoria_id || !unidad_medida || isNaN(precio_venta)) {
+                showToast('error', 'Por favor, completa todos los campos obligatorios y asegúrate de que los precios sean números válidos.');
+                return;
+            }
+
+            const selectedCategory = allCategories.find(cat => String(cat.id) === categoria_id);
+            const isPlatillo = selectedCategory && selectedCategory.nombre_categoria === 'Platillos';
+
+            if (!isPlatillo) {
+                // Validaciones para insumos/bebidas si no es platillo
+                if (isNaN(precio_compra) || isNaN(cantidad_disponible) || isNaN(stock_minimo)) {
+                    showToast('error', 'Para Insumos/Bebidas, precio de compra, cantidad disponible y stock mínimo deben ser números válidos.');
+                    return;
+                }
+            }
+
+
+            const productData = {
+                nombre_producto,
+                descripcion,
+                categoria_id: parseInt(categoria_id),
+                unidad_medida,
+                precio_compra: isPlatillo ? null : precio_compra, // Enviar null si es platillo
+                precio_venta,
+                cantidad_disponible: isPlatillo ? 0 : cantidad_disponible, // Enviar 0 si es platillo
+                stock_minimo: isPlatillo ? 0 : stock_minimo, // Enviar 0 si es platillo
+                fecha_caducidad // Ya está en formato null o YYYY-MM-DD
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `http://localhost:3000/api/inventory/${id}` : 'http://localhost:3000/api/inventory';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(productData),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('success', result.message);
+                    clearProductForm();
+                    fetchProducts(); // Recargar la tabla de productos
+                } else {
+                    showToast('error', `Error: ${result.message || 'Error al guardar el producto.'}`);
+                    console.error('Server error:', result.error); // Log del error del servidor
+                }
+            } catch (error) {
+                console.error('Error submitting product form:', error);
+                showToast('error', 'Ocurrió un error de conexión al guardar el producto.');
+            }
+        });
+
+        clearFormBtn.addEventListener('click', clearProductForm);
+        productSearchInput.addEventListener('input', fetchProducts);
+        filterCategorySelect.addEventListener('change', fetchProducts);
+
+
+        // --- Lógica de Gestión de Recetas ---
+        manageRecipeBtn.addEventListener('click', async () => {
+            selectedPlatilloIdForRecipe = selectPlatilloForRecipe.value;
+            if (!selectedPlatilloIdForRecipe) {
+                showToast('warning', 'Por favor, selecciona un platillo para administrar su receta.');
+                return;
+            }
+
+            const selectedPlatillo = allProducts.find(p => String(p.id) === selectedPlatilloIdForRecipe);
+            if (selectedPlatillo) {
+                currentPlatilloName.textContent = selectedPlatillo.nombre_producto;
+                await loadRecipeInsumos(selectedPlatilloIdForRecipe);
+                recipeModal.style.display = 'flex';
+            } else {
+                showToast('error', 'Platillo no encontrado.');
+            }
+        });
+
+        const loadRecipeInsumos = async (platilloId) => {
+            recipeInsumosList.innerHTML = '<li class="text-muted text-center">Cargando insumos de receta...</li>';
+            try {
+                const response = await fetch(`http://localhost:3000/api/recipes/${platilloId}`);
+                if (!response.ok) throw new Error('Error al cargar insumos de la receta');
+                const insumos = await response.json();
+                renderRecipeInsumos(insumos);
+            } catch (error) {
+                console.error('Error loading recipe insumos:', error);
+                showToast('error', 'No se pudieron cargar los insumos de la receta.');
+                recipeInsumosList.innerHTML = '<li class="text-muted text-center text-danger">Error al cargar insumos.</li>';
+            }
+        };
+
+        const renderRecipeInsumos = (insumos) => {
+            recipeInsumosList.innerHTML = '';
+            if (insumos.length === 0) {
+                recipeInsumosList.innerHTML = '<li class="text-muted text-center">No hay insumos en esta receta.</li>';
+                return;
+            }
+            insumos.forEach(insumo => {
+                const li = document.createElement('li');
+                // ESTA ES LA LÍNEA CRÍTICA
+                li.innerHTML = `
+                    <span>${insumo.insumo_nombre} - ${insumo.cantidad_requerida} ${insumo.unidad_medida_receta}</span>
+                    <button class="btn btn-danger btn-sm" onclick="confirmRemoveInsumoFromRecipe(${insumo.platillo_id}, ${insumo.insumo_id}, '${insumo.insumo_nombre}')"><i class="fas fa-trash-alt"></i></button>
+                `;
+                recipeInsumosList.appendChild(li);
+            });
+        };
+
+        addInsumoToRecipeBtn.addEventListener('click', async () => {
+            const insumoId = insumoSelect.value;
+            const quantity = parseFloat(insumoQuantityInput.value);
+            const unit = insumoUnitInput.value.trim();
+
+            if (!selectedPlatilloIdForRecipe || !insumoId || isNaN(quantity) || quantity <= 0 || !unit) {
+                showToast('warning', 'Completa todos los campos para añadir el insumo a la receta.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/recipes/${selectedPlatilloIdForRecipe}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        platillo_id: selectedPlatilloIdForRecipe,
+                        insumo_id: insumoId,
+                        cantidad_requerida: quantity,
+                        unidad_medida_receta: unit
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showToast('success', result.message);
+                    insumoSelect.value = '';
+                    insumoQuantityInput.value = '';
+                    insumoUnitInput.value = '';
+                    loadRecipeInsumos(selectedPlatilloIdForRecipe); // Recargar insumos de la receta
+                } else {
+                    showToast('error', `Error: ${result.message || 'No se pudo añadir/actualizar el insumo a la receta.'}`);
+                    console.error('Server error:', result.error);
+                }
+            } catch (error) {
+                console.error('Error adding insumo to recipe:', error);
+                showToast('error', 'Ocurrió un error al añadir/actualizar el insumo en la receta.');
+            }
+        });
+
+
+        const confirmRemoveInsumoFromRecipe = (platilloId, insumoId, insumoName) => {
+            showConfirmModal(
+                'Eliminar Insumo de Receta',
+                `¿Estás seguro de que quieres eliminar "${insumoName}" de la receta de este platillo?`,
+                async () => {
+                    try {
+                        // Usar la nueva ruta DELETE: /api/recipes/:platillo_id/insumos/:insumo_id
+                        const response = await fetch(`http://localhost:3000/api/recipes/${platilloId}/insumos/${insumoId}`, {
+                            method: 'DELETE',
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            showToast('success', result.message);
+                            loadRecipeInsumos(selectedPlatilloIdForRecipe); // Recargar insumos de la receta
+                            fetchProducts(); // Posiblemente el stock calculado del platillo cambie
+                        } else {
+                            showToast('error', `Error: ${result.message || 'No se pudo eliminar el insumo de la receta.'}`);
+                        }
+                    } catch (error) {
+                        console.error('Error removing insumo from recipe:', error);
+                        showToast('error', 'Ocurrió un error al intentar eliminar el insumo de la receta.');
+                    }
+                }
+            );
+        };
+
+
+        // --- Inicialización ---
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLogin();
+            loadCategories(); // Esto ahora también llama a loadPlatillosForRecipe y loadInsumosForRecipe
+            fetchProducts();
+        });
+
+    </script>
+</body>
+</html>

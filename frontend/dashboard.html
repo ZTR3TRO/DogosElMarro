@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El Amaro - Dashboard</title>
+    <title>El Marro - Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
+        /* Tu CSS actual va aquí */
         :root {
             --primary-color: #ff6b35; /* Naranja hotdog */
             --secondary-color: #f7931e; /* Naranja más claro */
@@ -19,7 +20,7 @@
         * {
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+            box-sizing: border;
         }
 
         body {
@@ -38,7 +39,7 @@
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* Para empujar el logout al final */
+            justify-content: space-between;
         }
 
         .sidebar .logo-section {
@@ -69,7 +70,7 @@
 
         .sidebar nav ul {
             list-style: none;
-            flex-grow: 1; /* Permite que el menú ocupe el espacio disponible */
+            flex-grow: 1;
         }
 
         .sidebar nav ul li {
@@ -108,7 +109,7 @@
             flex-grow: 1;
             padding: 30px;
             background-color: var(--light-color);
-            overflow-y: auto; /* Para permitir scroll si el contenido es largo */
+            overflow-y: auto;
         }
 
         .header {
@@ -177,24 +178,51 @@
             font-size: 28px;
         }
 
-        .card p {
-            font-size: 16px;
-            color: #666;
-            line-height: 1.6;
-        }
         .card .metric-value {
             font-size: 36px;
             font-weight: 700;
             color: var(--dark-color);
             margin-top: 15px;
         }
+        
+        /* Estilo específico para listas dentro de las tarjetas, como productos a caducar */
+        .card ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 15px;
+        }
+
+        .card ul li {
+            background-color: var(--light-color);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95em;
+            color: var(--dark-color);
+        }
+
+        .card ul li:last-child {
+            margin-bottom: 0;
+        }
+
+        .card ul li strong {
+            color: var(--primary-color);
+        }
+        
+        .card ul li span {
+            font-size: 0.85em;
+            color: #777;
+        }
 
         .logout-button {
             display: block;
-            width: calc(100% - 30px); /* Ajusta para el padding */
+            width: calc(100% - 30px);
             padding: 12px 15px;
-            margin: 20px auto 0; /* Margen inferior para separarlo */
-            background-color: #dc3545; /* Rojo de salida */
+            margin: 20px auto 0;
+            background-color: #dc3545;
             color: var(--white-color);
             border: none;
             border-radius: 8px;
@@ -203,7 +231,7 @@
             cursor: pointer;
             transition: background-color 0.3s ease;
             text-align: center;
-            text-decoration: none; /* Si se usa como link */
+            text-decoration: none;
         }
 
         .logout-button:hover {
@@ -244,7 +272,7 @@
                 margin-top: 15px;
             }
             .dashboard-grid {
-                grid-template-columns: 1fr; /* Una columna en pantallas pequeñas */
+                grid-template-columns: 1fr;
             }
             .logout-button {
                 width: 100%;
@@ -257,7 +285,7 @@
     <aside class="sidebar">
         <div class="logo-section">
             <div class="logo">🌭</div>
-            <h1 class="brand-name">El Amaro</h1>
+            <h1 class="brand-name">El Marro</h1>
         </div>
         <nav>
             <ul>
@@ -273,29 +301,37 @@
 
     <main class="main-content">
         <header class="header">
-            <h1>Bienvenido al Dashboard</h1>
+            <h1 id="welcomeMessage">Bienvenido Marro</h1> 
             <div class="user-info">
-                <span>Hola, Admin</span>
-                <img src="https://via.placeholder.com/40" alt="Avatar de Usuario">
+                <span id="userInfoName">Hola, Admin</span>
             </div>
         </header>
 
         <section class="dashboard-grid">
             <div class="card">
-                <h2><span>📦</span> Inventario Actual</h2>
-                <p>Visualiza rápidamente el estado de tus productos. Mantén un control estricto para evitar faltantes y caducidades.</p>
+                <h2><span>📦</span> Productos Totales</h2>
+                <p>Cantidad total de productos registrados en el sistema.</p>
                 <p class="metric-value" id="totalProductsValue">Cargando...</p>
             </div>
             <div class="card">
                 <h2><span>📈</span> Ventas del Día</h2>
-                <p>Resumen de las ventas de hoy. Accede a informes detallados para analizar el rendimiento.</p>
+                <p>Resumen de las ventas de hoy.</p>
                 <p class="metric-value" id="dailySalesValue">Cargando...</p>
             </div>
             <div class="card" id="lowStockCard">
-                <h2><span>🔔</span> Alertas Pendientes</h2>
-                <p>Revisa las notificaciones importantes, como stock mínimo o productos próximos a caducar.</p>
+                <h2><span>⚠️</span> Stock Mínimo</h2>
+                <p>Productos con niveles de stock por debajo del mínimo establecido.</p>
                 <p class="metric-value" id="lowStockValue">Cargando...</p>
             </div>
+            
+            <div class="card" id="expiringProductsCard">
+                <h2><span>⏳</span> Próximos a Caducar</h2>
+                <p>Productos cuya fecha de caducidad está cerca.</p>
+                <ul id="expiringProductsList">
+                    <li>Cargando...</li>
+                </ul>
+            </div>
+
             <div class="card">
                 <h2><span>🛒</span> Última Venta</h2>
                 <p>Detalle de la última transacción registrada en el sistema.</p>
@@ -305,92 +341,105 @@
     </main>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Lógica para el botón de cerrar sesión
+        document.addEventListener('DOMContentLoaded', async () => {
+            const totalProductsValue = document.getElementById('totalProductsValue');
+            const dailySalesValue = document.getElementById('dailySalesValue');
+            const lowStockValue = document.getElementById('lowStockValue');
+            const lastSaleValue = document.getElementById('lastSaleValue');
+            const expiringProductsList = document.getElementById('expiringProductsList');
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            const userInfoName = document.getElementById('userInfoName');
             const logoutButton = document.getElementById('logoutButton');
-            logoutButton.addEventListener('click', () => {
-                const confirmLogout = confirm('¿Estás seguro de que quieres cerrar sesión?');
-                if (confirmLogout) {
-                    // En una app real, aquí se borraría cualquier token de sesión (JWT)
-                    // localStorage.removeItem('authToken');
-                    window.location.href = 'index.html'; // Redirige de vuelta a la página de login
+
+            // --- Función para formatear moneda ---
+            const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('es-MX', {
+                    style: 'currency',
+                    currency: 'MXN',
+                    minimumFractionDigits: 2,
+                }).format(amount);
+            };
+
+            // --- Función para formatear fechas ---
+            const formatDate = (dateString) => {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString('es-MX', options);
+            };
+
+            // --- Cargar datos del Dashboard ---
+            try {
+                const response = await fetch('http://localhost:3000/api/inventory/summary');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            });
+                const data = await response.json();
 
-            // *** LÓGICA CORREGIDA: Cargar datos reales del dashboard ***
-            async function loadDashboardData() {
-                try {
-                    console.log('🔍 Iniciando carga de datos del dashboard...');
-                    const response = await fetch('http://localhost:3000/api/inventory/summary');
-                    
-                    console.log('📡 Respuesta recibida, status:', response.status);
-                    const data = await response.json();
-                    console.log('📊 Datos recibidos:', data);
+                // Actualizar Tarjeta de Productos Totales
+                totalProductsValue.textContent = data.totalProducts !== undefined ? data.totalProducts : 'N/A';
 
-                    if (response.ok) {
-                        // Actualizar la tarjeta de Inventario Actual
-                        console.log('📦 Actualizando inventario, total productos:', data.totalProducts);
-                        document.getElementById('totalProductsValue').textContent = `${data.totalProducts} Productos`;
+                // Actualizar Tarjeta de Ventas del Día
+                dailySalesValue.textContent = formatCurrency(data.dailySales !== undefined ? data.dailySales : 0);
 
-                        // Actualizar la tarjeta de Ventas del Día
-                        console.log('💰 Actualizando ventas del día:', data.dailySales);
-                        if (data.dailySales !== null && data.dailySales !== undefined) {
-                            document.getElementById('dailySalesValue').textContent = `$ ${parseFloat(data.dailySales).toFixed(2)}`;
-                        } else {
-                            document.getElementById('dailySalesValue').textContent = '$ 0.00';
-                        }
-
-                        // Actualizar la tarjeta de Alertas Pendientes
-                        console.log('🔔 Actualizando stock bajo:', data.lowStockProduct);
-                        const lowStockCard = document.getElementById('lowStockCard');
-                        const lowStockValue = document.getElementById('lowStockValue');
-                        if (data.lowStockProduct) {
-                            lowStockValue.textContent = `${data.lowStockProduct.nombre_producto} (${data.lowStockProduct.cantidad_disponible} unid.)`;
-                            lowStockCard.querySelector('h2').innerHTML = '<span>🔔</span> Stock Bajo';
-                            lowStockCard.querySelector('p:first-of-type').textContent = 'El siguiente producto requiere atención inmediata por bajo stock:';
-                        } else {
-                            lowStockValue.textContent = 'Sin alertas de stock';
-                            lowStockCard.querySelector('h2').innerHTML = '<span>✔️</span> Sin Alertas';
-                            lowStockCard.querySelector('p:first-of-type').textContent = 'No hay productos con stock mínimo que requieran tu atención.';
-                        }
-
-                        // Actualizar la última venta
-                        console.log('🛒 Actualizando última venta:', data.lastSale);
-                        const lastSaleValue = document.getElementById('lastSaleValue');
-                        if (data.lastSale) {
-                            const precioUnitario = parseFloat(data.lastSale.precio_unitario);
-                            const cantidad = parseFloat(data.lastSale.cantidad);
-                            const totalVenta = precioUnitario * cantidad;
-                            
-                            console.log('💡 Cálculo de venta:', {
-                                precio: precioUnitario,
-                                cantidad: cantidad,
-                                total: totalVenta
-                            });
-                            
-                            lastSaleValue.innerHTML = `
-                                <strong>${data.lastSale.nombre_producto}</strong><br>
-                                Cantidad: ${cantidad}<br>
-                                Total: ${totalVenta.toFixed(2)}
-                            `;
-                        } else {
-                            lastSaleValue.textContent = 'No hay ventas registradas.';
-                        }
-
-                        console.log('✅ Datos del dashboard cargados correctamente');
-                    } else {
-                        console.error('❌ Error al cargar datos del dashboard:', data.message);
-                        alert('No se pudieron cargar algunos datos del dashboard. Inténtalo de nuevo.');
-                    }
-                } catch (error) {
-                    console.error('❌ Error de red al cargar datos del dashboard:', error);
-                    console.error('❌ Detalles del error:', error.stack);
-                    alert('Error de conexión al cargar datos del dashboard.');
+                // Actualizar Tarjeta de Stock Mínimo
+                lowStockValue.textContent = data.lowStock !== undefined ? data.lowStock : 'N/A';
+                if (data.lowStock > 0) {
+                    document.getElementById('lowStockCard').style.borderColor = 'red'; // Puedes añadir más estilos de alerta
+                } else {
+                     document.getElementById('lowStockCard').style.borderColor = ''; // Restablecer
                 }
+
+
+                // Actualizar Tarjeta de Última Venta
+                if (data.lastSale && data.lastSale.productName) {
+                    lastSaleValue.innerHTML = `<strong>Producto:</strong> ${data.lastSale.productName}<br>`;
+                    lastSaleValue.innerHTML += `<strong>Cajero:</strong> ${data.lastSale.cajero || 'N/A'}<br>`; // Mostrar cajero
+                    lastSaleValue.innerHTML += `<strong>Fecha:</strong> ${formatDate(data.lastSale.saleDate)}<br>`;
+                    lastSaleValue.innerHTML += `<strong>Total:</strong> ${formatCurrency(data.lastSale.totalAmount)}`;
+                } else {
+                    lastSaleValue.textContent = 'No hay ventas recientes.';
+                }
+
+                // Actualizar Tarjeta de Productos a Caducar
+                expiringProductsList.innerHTML = ''; // Limpiar "Cargando..."
+                if (data.productsExpiringSoon && data.productsExpiringSoon.length > 0) {
+                    data.productsExpiringSoon.forEach(product => {
+                        const listItem = document.createElement('li');
+                        // AJUSTE CLAVE AQUÍ: Cambiamos product.productName a product.nombre_producto
+                        listItem.innerHTML = `<strong>${product.nombre_producto}</strong> - Vence el ${formatDate(product.fecha_caducidad)} (Quedan ${product.cantidad_disponible} unid.)`;
+                        expiringProductsList.appendChild(listItem);
+                    });
+                     document.getElementById('expiringProductsCard').style.borderColor = 'orange'; // Estilo de alerta
+                } else {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = '¡Ningún producto próximo a caducar!';
+                    expiringProductsList.appendChild(listItem);
+                    document.getElementById('expiringProductsCard').style.borderColor = ''; // Restablecer
+                }
+
+                // Actualizar mensaje de bienvenida (ejemplo estático por ahora)
+                welcomeMessage.textContent = 'Bienvenido Marro'; // Puedes cambiar esto por el nombre del usuario logeado
+                userInfoName.textContent = 'Hola, Admin'; // Puedes cambiar esto por el nombre del usuario logeado
+
+            } catch (error) {
+                console.error('Error al cargar los datos del dashboard:', error);
+                totalProductsValue.textContent = 'Error';
+                dailySalesValue.textContent = 'Error';
+                lowStockValue.textContent = 'Error';
+                lastSaleValue.textContent = 'Error';
+                expiringProductsList.innerHTML = '<li>Error al cargar productos.</li>';
+                welcomeMessage.textContent = 'Error al cargar';
+                userInfoName.textContent = 'Error';
             }
 
-            // Llamar a la función para cargar datos cuando la página se carga
-            loadDashboardData();
+            // --- Funcionalidad de Cerrar Sesión ---
+            logoutButton.addEventListener('click', () => {
+                // Aquí, en una aplicación real, borrarías cualquier token o sesión del localStorage/sessionStorage
+                // localStorage.removeItem('authToken'); 
+                // sessionStorage.clear(); // O limpiar todo si usas sessionStorage
+
+                alert('Sesión cerrada correctamente.'); // Mensaje simple, puedes mejorar esto
+                window.location.href = 'index.html'; // Redirigir a la pantalla de login
+            });
         });
     </script>
 </body>
