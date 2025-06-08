@@ -1,9 +1,10 @@
-// back/app.js
+// backend/app.js
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const pool = require('./db'); // Importa directamente el pool de conexiones desde db.js
+const bcrypt = require('bcrypt'); // Asegúrate de que bcrypt esté instalado: npm install bcrypt
 
 const app = express();
 const PORT = 3000;
@@ -11,12 +12,14 @@ const PORT = 3000;
 // Middleware
 app.use(cors()); // Habilita CORS para permitir peticiones desde el frontend
 app.use(bodyParser.json()); // Para parsear el cuerpo de las peticiones como JSON
+
 // Sirve archivos estáticos del frontend desde la carpeta 'frontend' que está un nivel arriba.
+// Esto es útil si abres el HTML directamente o usas un servidor simple para servir el frontend.
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // --- Rutas de la API ---
 
-// 1. Ruta de Login
+// 1. Ruta de Login (Autenticación de Usuarios)
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -24,18 +27,46 @@ app.post('/api/login', async (req, res) => {
         return res.status(400).json({ message: 'Usuario y contraseña son requeridos.' });
     }
 
+    let connection;
     try {
-        const [rows] = await pool.query('SELECT * FROM users WHERE username = ? AND password = ?', [username, password]);
+        connection = await pool.getConnection();
 
-        if (rows.length > 0) {
-            const user = rows[0];
-            res.status(200).json({ message: 'Inicio de sesión exitoso.', user: { username: user.username, role: user.role, id: user.id } }); // También enviamos el ID del usuario
-        } else {
-            res.status(401).json({ message: 'Credenciales inválidas.' });
+        const [rows] = await connection.execute(
+            'SELECT id, username, password, role, activo, nombre_completo FROM users WHERE username = ?',
+            [username]
+        );
+
+        if (rows.length === 0) {
+            return res.status(401).json({ message: 'Credenciales inválidas.' });
         }
+
+        const user = rows[0];
+
+        if (!user.activo) {
+            return res.status(403).json({ message: 'Tu cuenta está inactiva. Contacta al administrador.' });
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return res.status(401).json({ message: 'Credenciales inválidas.' });
+        }
+
+        res.status(200).json({
+            message: 'Inicio de sesión exitoso.',
+            user: {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                nombre_completo: user.nombre_completo
+            }
+        });
+
     } catch (err) {
-        console.error('Error en la base de datos durante el login:', err.message);
-        res.status(500).json({ message: 'Error interno del servidor.' });
+        console.error('Error durante el inicio de sesión:', err);
+        res.status(500).json({ message: 'Error interno del servidor.', error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
@@ -49,35 +80,46 @@ app.get('/api/inventory/summary', async (req, res) => {
         productsExpiringSoon: []
     };
 
+    let connection;
     try {
-        const [totalProductsResult] = await pool.query('SELECT COUNT(*) AS count FROM products');
+        connection = await pool.getConnection();
+
+        const [totalProductsResult] = await connection.query('SELECT COUNT(*) AS count FROM products WHERE activo = 1');
         summary.totalProducts = totalProductsResult[0].count;
 
         const today = new Date().toISOString().split('T')[0];
-        const [dailySalesResult] = await pool.query(`
-            SELECT SUM(cantidad * precio_unitario) AS total FROM sales WHERE DATE(fecha_venta) = ?
+        const [dailySalesResult] = await connection.query(`
+            SELECT SUM(total) AS total FROM ventas WHERE DATE(fecha_venta) = ?
         `, [today]);
-        summary.dailySales = dailySalesResult[0].total || 0;
+        summary.dailySales = parseFloat(dailySalesResult[0].total) || 0;
 
-        const [lowStockResult] = await pool.query(`
-            SELECT id, nombre_producto, cantidad_disponible, stock_minimo
-            FROM products WHERE cantidad_disponible <= stock_minimo AND cantidad_disponible > 0 ORDER BY cantidad_disponible ASC LIMIT 1
+        const [lowStockResult] = await connection.query(`
+            SELECT p.id, p.nombre_producto, p.cantidad_disponible, p.stock_minimo, c.nombre_categoria
+            FROM products p
+            JOIN categories c ON p.categoria_id = c.id
+            WHERE p.cantidad_disponible <= p.stock_minimo
+            AND p.cantidad_disponible > 0
+            AND c.nombre_categoria IN ('Insumos', 'Bebidas')
+            AND p.activo = 1
+            ORDER BY p.cantidad_disponible ASC LIMIT 1
         `);
         summary.lowStockProduct = lowStockResult.length > 0 ? lowStockResult[0] : null;
 
-        const [lastSaleResult] = await pool.query(`
-            SELECT s.cantidad, s.precio_unitario, p.nombre_producto, s.fecha_venta, u.username as cajero
-            FROM sales s
-            JOIN products p ON s.producto_id = p.id
-            JOIN users u ON s.user_id = u.id
-            ORDER BY s.fecha_venta DESC LIMIT 1
+        const [lastSaleResult] = await connection.query(`
+            SELECT v.id AS venta_id, v.fecha_venta, v.total, u.username as cajero
+            FROM ventas v
+            JOIN users u ON v.usuario_id = u.id
+            ORDER BY v.fecha_venta DESC LIMIT 1
         `);
         summary.lastSale = lastSaleResult.length > 0 ? lastSaleResult[0] : null;
 
-        const [expiringProducts] = await pool.query(`
+        const [expiringProducts] = await connection.query(`
             SELECT id, nombre_producto, cantidad_disponible, fecha_caducidad
             FROM products
-            WHERE fecha_caducidad IS NOT NULL AND fecha_caducidad <= CURDATE() + INTERVAL 7 DAY AND cantidad_disponible > 0
+            WHERE fecha_caducidad IS NOT NULL AND fecha_caducidad <= CURDATE() + INTERVAL 7 DAY
+            AND cantidad_disponible > 0
+            AND categoria_id IN (SELECT id FROM categories WHERE nombre_categoria IN ('Insumos', 'Bebidas'))
+            AND activo = 1
             ORDER BY fecha_caducidad ASC LIMIT 5
         `);
         summary.productsExpiringSoon = expiringProducts;
@@ -86,6 +128,8 @@ app.get('/api/inventory/summary', async (req, res) => {
     } catch (err) {
         console.error('Error al obtener el resumen del dashboard:', err.message);
         res.status(500).json({ message: 'Error interno del servidor al obtener el resumen.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
@@ -94,8 +138,9 @@ app.get('/api/inventory/summary', async (req, res) => {
 // Obtener todos los productos CON FILTROS Y CATEGORÍA
 app.get('/api/inventory', async (req, res) => {
     const searchTerm = req.query.search || '';
-    const categoryName = req.query.category || ''; // Nombre de la categoría
-    const status = req.query.status || ''; // Para filtros de stock
+    const categoryName = req.query.category || '';
+    const status = req.query.status || '';
+    const active = req.query.active;
 
     let sql = `
         SELECT p.*, c.nombre_categoria as category_name
@@ -115,11 +160,18 @@ app.get('/api/inventory', async (req, res) => {
     }
 
     if (status === 'low_stock') {
-        conditions.push('p.cantidad_disponible <= p.stock_minimo AND p.cantidad_disponible > 0');
+        conditions.push('p.cantidad_disponible <= p.stock_minimo AND p.cantidad_disponible > 0 AND c.nombre_categoria IN ("Insumos", "Bebidas")');
     } else if (status === 'expiring_soon') {
-        conditions.push('p.fecha_caducidad IS NOT NULL AND p.fecha_caducidad <= CURDATE() + INTERVAL 7 DAY AND p.cantidad_disponible > 0');
+        conditions.push('p.fecha_caducidad IS NOT NULL AND p.fecha_caducidad <= CURDATE() + INTERVAL 7 DAY AND p.cantidad_disponible > 0 AND c.nombre_categoria IN ("Insumos", "Bebidas")');
     } else if (status === 'out_of_stock') {
-        conditions.push('p.cantidad_disponible <= 0');
+        conditions.push('p.cantidad_disponible <= 0 AND c.nombre_categoria IN ("Insumos", "Bebidas")');
+    }
+
+    if (active !== undefined) {
+        conditions.push('p.activo = ?');
+        params.push(active === 'true' ? 1 : 0);
+    } else {
+        conditions.push('p.activo = 1');
     }
 
     if (conditions.length > 0) {
@@ -127,8 +179,10 @@ app.get('/api/inventory', async (req, res) => {
     }
     sql += ' ORDER BY p.nombre_producto ASC';
 
+    let connection;
     try {
-        const [rows] = await pool.query(sql, params);
+        connection = await pool.getConnection();
+        const [rows] = await connection.query(sql, params);
 
         let totalProducts = rows.length;
         let inStock = 0;
@@ -138,16 +192,9 @@ app.get('/api/inventory', async (req, res) => {
         let totalValue = 0;
 
         rows.forEach(product => {
-            // Solo sumar al valor total si es un insumo o bebida con stock directo
-            if (product.category_name !== 'Platillos') {
+            if (product.category_name === 'Insumos' || product.category_name === 'Bebidas') {
                 totalValue += parseFloat(product.cantidad_disponible || 0) * parseFloat(product.precio_venta || 0);
-            }
 
-            // Lógica de conteo de stock (ajustada para platillos)
-            if (product.category_name === 'Platillos') {
-                // El stock de platillos se calcula dinámicamente en el frontend o al vender
-                // No contamos directamente como inStock/lowStock/outOfStock aquí para fines de inventario físico
-            } else { // Insumos y bebidas
                 if (product.cantidad_disponible <= 0) {
                     outOfStock++;
                 } else if (product.cantidad_disponible <= product.stock_minimo && product.cantidad_disponible > 0) {
@@ -155,25 +202,23 @@ app.get('/api/inventory', async (req, res) => {
                 } else {
                     inStock++;
                 }
-            }
 
-            // Conteo de productos a caducar (aplica a insumos principalmente)
-            if (product.fecha_caducidad && product.cantidad_disponible > 0) {
-                const expirationDate = new Date(product.fecha_caducidad);
-                const today = new Date();
-                const sevenDaysFromNow = new Date();
-                sevenDaysFromNow.setDate(today.getDate() + 7);
+                if (product.fecha_caducidad && product.cantidad_disponible > 0) {
+                    const expirationDate = new Date(product.fecha_caducidad);
+                    const today = new Date();
+                    const sevenDaysFromNow = new Date();
+                    sevenDaysFromNow.setDate(today.getDate() + 7);
 
-                expirationDate.setHours(0, 0, 0, 0);
-                today.setHours(0, 0, 0, 0);
-                sevenDaysFromNow.setHours(0, 0, 0, 0);
+                    expirationDate.setHours(0, 0, 0, 0);
+                    today.setHours(0, 0, 0, 0);
+                    sevenDaysFromNow.setHours(0, 0, 0, 0);
 
-                if (expirationDate >= today && expirationDate <= sevenDaysFromNow) {
-                    expiringSoonCount++;
+                    if (expirationDate >= today && expirationDate <= sevenDaysFromNow) {
+                        expiringSoonCount++;
+                    }
                 }
             }
         });
-
 
         res.json({
             products: rows,
@@ -182,52 +227,52 @@ app.get('/api/inventory', async (req, res) => {
     } catch (err) {
         console.error('Error al obtener productos de inventario:', err.message);
         res.status(500).json({ message: 'Error interno del servidor al obtener productos.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-// AÑADIR UN PRODUCTO (CORREGIDO PARA MANEJAR PLATILLOS Y PARÁMETROS)
+// AÑADIR UN PRODUCTO
 app.post('/api/inventory', async (req, res) => {
     const { nombre_producto, descripcion, categoria_id, unidad_medida, precio_compra, precio_venta, cantidad_disponible, stock_minimo, fecha_caducidad } = req.body;
 
-    // Validación básica de campos requeridos (ajustada para permitir precio_compra/cantidad_disponible nulos para platillos)
-    if (!nombre_producto || !categoria_id || !unidad_medida || precio_venta === undefined) {
-        return res.status(400).json({ message: 'Nombre, categoría, unidad de medida y precio de venta son obligatorios.' });
+    if (!nombre_producto || !categoria_id || precio_venta === undefined) {
+        return res.status(400).json({ message: 'Nombre, categoría y precio de venta son obligatorios.' });
     }
 
+    let connection;
     try {
-        // Obtener el nombre de la categoría para aplicar lógica condicional
-        const [categoryRows] = await pool.query('SELECT nombre_categoria FROM categories WHERE id = ?', [categoria_id]);
+        connection = await pool.getConnection();
+
+        const [categoryRows] = await connection.query('SELECT nombre_categoria FROM categories WHERE id = ?', [categoria_id]);
         const category = categoryRows.length > 0 ? categoryRows[0].nombre_categoria : null;
 
         if (!category) {
             return res.status(400).json({ message: 'Categoría no encontrada.' });
         }
 
-        // Determinar los valores finales a insertar basados en la categoría
         const isPlatillo = category === 'Platillos';
 
-        const finalPrecioCompra = isPlatillo ? null : parseFloat(precio_compra) || 0;
-        const finalCantidadDisponible = isPlatillo ? 0 : parseFloat(cantidad_disponible) || 0;
-        const finalStockMinimo = isPlatillo ? 0 : parseFloat(stock_minimo) || 0;
+        const finalPrecioCompra = isPlatillo ? null : (parseFloat(precio_compra) || 0);
+        const finalCantidadDisponible = isPlatillo ? 0 : (parseFloat(cantidad_disponible) || 0);
+        const finalStockMinimo = isPlatillo ? 0 : (parseFloat(stock_minimo) || 0);
         const finalFechaCaducidad = isPlatillo ? null : (fecha_caducidad || null);
-        const finalUnidadMedida = isPlatillo ? 'unidad' : unidad_medida; // Platillos siempre son "unidad"
+        const finalUnidadMedida = isPlatillo ? 'unidad' : (unidad_medida || 'unidad');
 
-        // Asegúrate de que los valores numéricos sean válidos si no son null
-        if (precio_venta === null || isNaN(precio_venta)) {
+        if (isNaN(parseFloat(precio_venta))) {
              return res.status(400).json({ message: 'El precio de venta debe ser un número válido.' });
         }
 
-
-        const [result] = await pool.query(`
-            INSERT INTO products (nombre_producto, descripcion, categoria_id, unidad_medida, precio_compra, precio_venta, cantidad_disponible, stock_minimo, fecha_caducidad)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+        const [result] = await connection.query(`
+            INSERT INTO products (nombre_producto, descripcion, categoria_id, unidad_medida, precio_compra, precio_venta, cantidad_disponible, stock_minimo, fecha_caducidad, activo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);
         `, [
             nombre_producto,
             descripcion || null,
             categoria_id,
             finalUnidadMedida,
             finalPrecioCompra,
-            parseFloat(precio_venta), // Siempre convertir a número
+            parseFloat(precio_venta),
             finalCantidadDisponible,
             finalStockMinimo,
             finalFechaCaducidad
@@ -235,48 +280,49 @@ app.post('/api/inventory', async (req, res) => {
 
         res.status(201).json({ message: 'Producto añadido exitosamente.', id: result.insertId });
     } catch (err) {
-        console.error('Error al añadir producto en el servidor:', err); // Log del error completo
+        console.error('Error al añadir producto en el servidor:', err);
         if (err.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({ message: 'Ya existe un producto con este nombre.' });
         }
         res.status(500).json({ message: 'Error interno del servidor al añadir producto.', error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-
-// Actualizar un producto existente (ajustado para manejar platillos y parámetros)
+// Actualizar un producto existente
 app.put('/api/inventory/:id', async (req, res) => {
     const productId = req.params.id;
-    const { nombre_producto, descripcion, categoria_id, unidad_medida, precio_compra, precio_venta, cantidad_disponible, stock_minimo, fecha_caducidad } = req.body;
+    const { nombre_producto, descripcion, categoria_id, unidad_medida, precio_compra, precio_venta, cantidad_disponible, stock_minimo, fecha_caducidad, activo } = req.body;
 
-    // Validación básica de campos requeridos
-    if (!nombre_producto || !categoria_id || !unidad_medida || precio_venta === undefined) {
-        return res.status(400).json({ message: 'Nombre, categoría, unidad de medida y precio de venta son obligatorios.' });
+    if (!nombre_producto || !categoria_id || precio_venta === undefined || activo === undefined) {
+        return res.status(400).json({ message: 'Nombre, categoría, precio de venta y estado activo son obligatorios.' });
     }
 
+    let connection;
     try {
-        // Obtener el nombre de la categoría para aplicar lógica condicional
-        const [categoryRows] = await pool.query('SELECT nombre_categoria FROM categories WHERE id = ?', [categoria_id]);
+        connection = await pool.getConnection();
+
+        const [categoryRows] = await connection.query('SELECT nombre_categoria FROM categories WHERE id = ?', [categoria_id]);
         const category = categoryRows.length > 0 ? categoryRows[0].nombre_categoria : null;
 
         if (!category) {
             return res.status(400).json({ message: 'Categoría no encontrada.' });
         }
 
-        // Determinar los valores finales a actualizar basados en la categoría
         const isPlatillo = category === 'Platillos';
 
-        const finalPrecioCompra = isPlatillo ? null : parseFloat(precio_compra) || 0;
-        const finalCantidadDisponible = isPlatillo ? 0 : parseFloat(cantidad_disponible) || 0;
-        const finalStockMinimo = isPlatillo ? 0 : parseFloat(stock_minimo) || 0;
+        const finalPrecioCompra = isPlatillo ? null : (parseFloat(precio_compra) || 0);
+        const finalCantidadDisponible = isPlatillo ? 0 : (parseFloat(cantidad_disponible) || 0);
+        const finalStockMinimo = isPlatillo ? 0 : (parseFloat(stock_minimo) || 0);
         const finalFechaCaducidad = isPlatillo ? null : (fecha_caducidad || null);
-        const finalUnidadMedida = isPlatillo ? 'unidad' : unidad_medida; // Platillos siempre son "unidad"
+        const finalUnidadMedida = isPlatillo ? 'unidad' : (unidad_medida || 'unidad');
 
-        if (precio_venta === null || isNaN(precio_venta)) {
+        if (isNaN(parseFloat(precio_venta))) {
             return res.status(400).json({ message: 'El precio de venta debe ser un número válido.' });
         }
 
-        const [result] = await pool.query(`
+        const [result] = await connection.query(`
             UPDATE products SET
                 nombre_producto = ?,
                 descripcion = ?,
@@ -286,8 +332,8 @@ app.put('/api/inventory/:id', async (req, res) => {
                 precio_venta = ?,
                 cantidad_disponible = ?,
                 stock_minimo = ?,
-                fecha_caducidad = ?
-                -- ultima_actualizacion se actualiza automáticamente si tiene un DEFAULT en la BD
+                fecha_caducidad = ?,
+                activo = ?
             WHERE id = ?;
         `, [
             nombre_producto,
@@ -299,6 +345,7 @@ app.put('/api/inventory/:id', async (req, res) => {
             finalCantidadDisponible,
             finalStockMinimo,
             finalFechaCaducidad,
+            activo ? 1 : 0,
             productId
         ]);
 
@@ -312,86 +359,60 @@ app.put('/api/inventory/:id', async (req, res) => {
             return res.status(409).json({ message: 'Ya existe un producto con este nombre.' });
         }
         res.status(500).json({ message: 'Error interno del servidor al actualizar producto.', error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-// Eliminar un producto (con verificación de recetas y ventas)
+// Eliminar un producto (desactivar)
 app.delete('/api/inventory/:id', async (req, res) => {
     const productId = req.params.id;
 
+    let connection;
     try {
-        const connection = await pool.getConnection(); // Obtener una conexión del pool
-        await connection.beginTransaction(); // Iniciar la transacción
+        connection = await pool.getConnection();
+        const [result] = await connection.query('UPDATE products SET activo = 0 WHERE id = ?', [productId]);
 
-        try {
-            // 1. Verificar si el producto es parte de alguna receta (como platillo o como insumo)
-            const [recipeUsage] = await connection.query(
-                'SELECT COUNT(*) AS count FROM recipes WHERE platillo_id = ? OR insumo_id = ?',
-                [productId, productId]
-            );
-
-            if (recipeUsage[0].count > 0) {
-                await connection.rollback(); // Deshacer la transacción
-                return res.status(409).json({ message: 'No se puede eliminar este producto porque está siendo usado en una o más recetas. Elimínelo de todas las recetas primero.' });
-            }
-
-            // 2. Verificar si el producto ha sido vendido
-            const [saleUsage] = await connection.query(
-                'SELECT COUNT(*) AS count FROM sales WHERE producto_id = ?',
-                [productId]
-            );
-            if (saleUsage[0].count > 0) {
-                await connection.rollback(); // Deshacer la transacción
-                return res.status(409).json({ message: 'No se puede eliminar este producto porque tiene registros de ventas asociados. Considere desactivarlo o marcarlo como "obsoleto" en lugar de eliminarlo.' });
-            }
-
-            // 3. Si no hay referencias, proceder con la eliminación
-            const [result] = await connection.query('DELETE FROM products WHERE id = ?', [productId]);
-            if (result.affectedRows === 0) {
-                await connection.rollback(); // Deshacer la transacción
-                return res.status(404).json({ message: 'Producto no encontrado.' });
-            }
-
-            await connection.commit(); // Confirmar la transacción
-            res.status(200).json({ message: 'Producto eliminado exitosamente.' });
-
-        } catch (innerErr) {
-            await connection.rollback(); // Deshacer la transacción en caso de cualquier error interno
-            throw innerErr; // Re-lanzar el error para que sea capturado por el catch externo
-        } finally {
-            connection.release(); // Liberar la conexión de vuelta al pool
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Producto no encontrado o ya estaba inactivo.' });
         }
+        res.status(200).json({ message: 'Producto desactivado exitosamente (marcado como inactivo).' });
 
     } catch (err) {
-        console.error('Error al eliminar producto (catch externo):', err); // Log del error completo
-        if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
-            // Este es un fallback si una restricción de clave foránea no fue capturada por las verificaciones explícitas
-            return res.status(409).json({ message: 'No se puede eliminar el producto debido a dependencias existentes en la base de datos (clave foránea).' });
-        }
-        res.status(500).json({ message: 'Error interno del servidor al eliminar producto.', error: err.message });
+        console.error('Error al desactivar producto:', err);
+        res.status(500).json({ message: 'Error interno del servidor al desactivar producto.', error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
+
 
 // --- Nuevas Rutas de Categorías y Recetas ---
 
 // 4. Ruta para obtener todas las categorías
 app.get('/api/categories', async (req, res) => {
+    let connection;
     try {
-        const [rows] = await pool.query('SELECT * FROM categories ORDER BY nombre_categoria');
+        connection = await pool.getConnection();
+        const [rows] = await connection.query('SELECT * FROM categories ORDER BY nombre_categoria');
         res.json(rows);
     } catch (err) {
         console.error('Error al obtener categorías:', err.message);
         res.status(500).json({ message: 'Error interno del servidor al obtener categorías.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
 // 5. Ruta para obtener los insumos de una receta de un platillo específico
 app.get('/api/recipes/:platillo_id', async (req, res) => {
     const platilloId = req.params.platillo_id;
+    let connection;
     try {
-        const [rows] = await pool.query(
-            `SELECT r.id, r.platillo_id, r.insumo_id, r.cantidad_requerida, r.unidad_medida_receta,
-                    p.nombre_producto as insumo_nombre, p.unidad_medida as insumo_unidad_medida_base
+        connection = await pool.getConnection();
+        const [rows] = await connection.query(
+            `SELECT r.id as recipe_item_id, r.platillo_id, r.insumo_id, r.cantidad_requerida, r.unidad_medida_receta,
+                    p.nombre_producto as insumo_nombre, p.unidad_medida as insumo_unidad_base
              FROM recipes r
              JOIN products p ON r.insumo_id = p.id
              WHERE r.platillo_id = ?`,
@@ -401,21 +422,28 @@ app.get('/api/recipes/:platillo_id', async (req, res) => {
     } catch (err) {
         console.error('Error al obtener receta:', err.message);
         res.status(500).json({ message: 'Error interno del servidor al obtener la receta.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
 // 6. Ruta para añadir un insumo a una receta (o actualizar si ya existe)
-app.post('/api/recipes/:platillo_id', async (req, res) => { // Ruta cambiada para incluir platillo_id en la URL, más RESTful
-    const platillo_id = req.params.platillo_id; // Obtener platillo_id de la URL
+app.post('/api/recipes/:platillo_id', async (req, res) => {
+    const platillo_id = req.params.platillo_id;
     const { insumo_id, cantidad_requerida, unidad_medida_receta } = req.body;
 
-    if (!platillo_id || !insumo_id || !cantidad_requerida || !unidad_medida_receta) {
+    if (!platillo_id || !insumo_id || cantidad_requerida === undefined || !unidad_medida_receta) {
         return res.status(400).json({ message: 'Todos los campos de la receta son obligatorios.' });
     }
+    if (isNaN(parseFloat(cantidad_requerida)) || parseFloat(cantidad_requerida) <= 0) {
+        return res.status(400).json({ message: 'La cantidad requerida debe ser un número positivo.' });
+    }
 
+    let connection;
     try {
-        // Verificar que el platillo_id sea realmente un platillo
-        const [platilloCheck] = await pool.query(
+        connection = await pool.getConnection();
+
+        const [platilloCheck] = await connection.query(
             `SELECT p.id FROM products p JOIN categories c ON p.categoria_id = c.id
              WHERE p.id = ? AND c.nombre_categoria = 'Platillos'`,
             [platillo_id]
@@ -424,51 +452,52 @@ app.post('/api/recipes/:platillo_id', async (req, res) => { // Ruta cambiada par
             return res.status(400).json({ message: 'El ID proporcionado no corresponde a un Platillo.' });
         }
 
-        // Verificar que el insumo_id sea realmente un insumo (o bebida si permites bebidas como insumos)
-        const [insumoCheck] = await pool.query(
+        const [insumoCheck] = await connection.query(
             `SELECT p.id FROM products p JOIN categories c ON p.categoria_id = c.id
-             WHERE p.id = ? AND (c.nombre_categoria = 'Insumos' OR c.nombre_categoria = 'Bebidas')`, // Permitir bebidas como insumos
+             WHERE p.id = ? AND (c.nombre_categoria = 'Insumos' OR c.nombre_categoria = 'Bebidas')`,
             [insumo_id]
         );
         if (insumoCheck.length === 0) {
             return res.status(400).json({ message: 'El ID proporcionado no corresponde a un Insumo o Bebida.' });
         }
 
-        // Verificar si ya existe este insumo en la receta de este platillo
-        const [existing] = await pool.query(
+        const [existing] = await connection.query(
             'SELECT id FROM recipes WHERE platillo_id = ? AND insumo_id = ?',
             [platillo_id, insumo_id]
         );
 
         if (existing.length > 0) {
-            // Si ya existe, actualizamos la cantidad en lugar de añadir uno nuevo
-            const [updateResult] = await pool.query(
+            const [updateResult] = await connection.query(
                 'UPDATE recipes SET cantidad_requerida = ?, unidad_medida_receta = ? WHERE id = ?',
-                [cantidad_requerida, unidad_medida_receta, existing[0].id]
+                [parseFloat(cantidad_requerida), unidad_medida_receta, existing[0].id]
             );
             return res.status(200).json({ message: 'Insumo de receta actualizado exitosamente.', id: existing[0].id });
         }
 
-        const [result] = await pool.query(
+        const [result] = await connection.query(
             'INSERT INTO recipes (platillo_id, insumo_id, cantidad_requerida, unidad_medida_receta) VALUES (?, ?, ?, ?)',
-            [platillo_id, insumo_id, cantidad_requerida, unidad_medida_receta]
+            [platillo_id, insumo_id, parseFloat(cantidad_requerida), unidad_medida_receta]
         );
         res.status(201).json({ id: result.insertId, message: 'Insumo añadido a la receta exitosamente.' });
     } catch (err) {
-        console.error('Error al añadir/actualizar insumo a receta:', err); // Log del error completo
+        console.error('Error al añadir/actualizar insumo a receta:', err);
         if (err.code === 'ER_DUP_ENTRY') {
              return res.status(409).json({ message: 'Este insumo ya existe en la receta de este platillo.' });
         }
         res.status(500).json({ message: 'Error interno del servidor al añadir/actualizar insumo a la receta.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-// 7. Ruta para eliminar un insumo de una receta (CORREGIDO: usa platillo_id y insumo_id)
+// 7. Ruta para eliminar un insumo de una receta
 app.delete('/api/recipes/:platillo_id/insumos/:insumo_id', async (req, res) => {
     const platilloId = req.params.platillo_id;
     const insumoId = req.params.insumo_id;
+    let connection;
     try {
-        const [result] = await pool.query('DELETE FROM recipes WHERE platillo_id = ? AND insumo_id = ?', [platilloId, insumoId]);
+        connection = await pool.getConnection();
+        const [result] = await connection.query('DELETE FROM recipes WHERE platillo_id = ? AND insumo_id = ?', [platilloId, insumoId]);
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Insumo de receta no encontrado para este platillo.' });
         }
@@ -476,30 +505,31 @@ app.delete('/api/recipes/:platillo_id/insumos/:insumo_id', async (req, res) => {
     } catch (err) {
         console.error('Error al eliminar insumo de receta:', err.message);
         res.status(500).json({ message: 'Error interno del servidor al eliminar insumo de la receta.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
 
 // 8. Ruta para obtener productos para el menú (solo platillos y bebidas, con stock calculado para platillos)
 app.get('/api/sales/menu', async (req, res) => {
+    let connection;
     try {
-        // Obtener platillos y bebidas con sus categorías
-        const [menuItems] = await pool.query(`
+        connection = await pool.getConnection();
+
+        const [menuItems] = await connection.query(`
             SELECT p.id, p.nombre_producto, p.precio_venta, p.cantidad_disponible, p.unidad_medida, c.nombre_categoria
             FROM products p
             JOIN categories c ON p.categoria_id = c.id
-            WHERE c.nombre_categoria IN ('Platillos', 'Bebidas')
+            WHERE c.nombre_categoria IN ('Platillos', 'Bebidas') AND p.activo = 1
             ORDER BY c.nombre_categoria, p.nombre_producto;
         `);
 
-        // Obtener todas las recetas para calcular el stock de platillos
-        const [recipes] = await pool.query(`
+        const [recipes] = await connection.query(`
             SELECT r.platillo_id, r.insumo_id, r.cantidad_requerida, r.unidad_medida_receta,
-                   p.cantidad_disponible as insumo_stock_disponible, p.unidad_medida as insumo_unidad_base,
-                   c.nombre_categoria as insumo_categoria -- Necesario para posibles conversiones
+                   p.cantidad_disponible as insumo_stock_disponible, p.unidad_medida as insumo_unidad_base
             FROM recipes r
-            JOIN products p ON r.insumo_id = p.id
-            JOIN categories c ON p.categoria_id = c.id;
+            JOIN products p ON r.insumo_id = p.id;
         `);
 
         const platilloRecipesMap = new Map();
@@ -516,67 +546,75 @@ app.get('/api/sales/menu', async (req, res) => {
                 const itemRecipes = platilloRecipesMap.get(item.id) || [];
 
                 if (itemRecipes.length === 0) {
-                    maxPossible = 0; // Si un platillo no tiene receta, stock es 0
+                    maxPossible = 0;
                 } else {
                     for (const recipeInsumo of itemRecipes) {
-                        if (recipeInsumo.cantidad_requerida > 0) {
-                            // TODO: Considerar conversiones de unidades si unidad_medida_receta
-                            // y insumo_unidad_base no son siempre iguales.
-                            // Por ahora, se asume que son directamente comparables o que la cantidad_requerida ya está en la unidad base.
-                            const possibleFromThisInsumo = Math.floor(recipeInsumo.insumo_stock_disponible / recipeInsumo.cantidad_requerida);
-                            maxPossible = Math.min(maxPossible, possibleFromThisInsumo);
-                        } else {
-                            // Si cantidad_requerida es 0, este insumo no limita la producción
-                            // Esto puede indicar un error en la receta o un insumo "simbólico"
-                            // No debería afectar maxPossible negativamente.
+                        if (recipeInsumo.cantidad_requerida <= 0 || recipeInsumo.insumo_stock_disponible === null) {
+                            continue;
                         }
+
+                        const possibleFromThisInsumo = Math.floor(recipeInsumo.insumo_stock_disponible / recipeInsumo.cantidad_requerida);
+                        maxPossible = Math.min(maxPossible, possibleFromThisInsumo);
                     }
                 }
-                item.cantidad_disponible = maxPossible; // Esto es el stock calculable del platillo
+                item.cantidad_disponible = maxPossible;
             }
-            // Para bebidas, la cantidad_disponible ya es el stock directo
             return item;
         });
 
         res.json(menuWithCalculatedStock);
 
     } catch (err) {
-        console.error('Error al obtener productos para el menú:', err.message);
+        console.error('Error al obtener productos para el menú (backend):', err.message);
         res.status(500).json({ message: 'Error interno del servidor al obtener el menú.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
 
-// 9. Ruta para registrar una venta (ACTUALIZADA PARA RECETAS Y TRANSACCIONES)
+// 9. Ruta para registrar una venta (COMPLETAMENTE REVISADA CON TRANSACCIONES Y VALIDACIONES)
 app.post('/api/sales', async (req, res) => {
-    const { cartItems, userId, paymentType } = req.body; // Recibe un array de items del carrito
+    const { cartItems, userId, paymentType } = req.body;
 
     if (!cartItems || cartItems.length === 0 || !userId || !paymentType) {
         return res.status(400).json({ message: 'Datos incompletos para registrar la venta.' });
     }
 
-    const connection = await pool.getConnection(); // Obtener una conexión del pool
+    let connection;
     try {
-        await connection.beginTransaction(); // Iniciar la transacción
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        let subtotalVenta = 0;
+        for (const item of cartItems) {
+            subtotalVenta += item.quantity * item.unitPrice;
+        }
+        const ivaVenta = subtotalVenta * 0.16; // Asumiendo un IVA del 16%
+        const totalVenta = subtotalVenta + ivaVenta;
+
+        const [ventaPrincipalResult] = await connection.query(
+            'INSERT INTO ventas (usuario_id, fecha_venta, total, tipo_pago) VALUES (?, NOW(), ?, ?)',
+            [userId, totalVenta, paymentType]
+        );
+        const ventaId = ventaPrincipalResult.insertId;
 
         for (const item of cartItems) {
-            const { productId, quantity, unitPrice, categoryName, productName } = item; // Añadir productName para mensajes de error
+            const { productId, quantity, unitPrice, categoryName, productName } = item;
+            const itemTotal = quantity * unitPrice;
 
-            // Registrar la venta individualmente para cada item
-            await connection.query(`
-                INSERT INTO sales (producto_id, cantidad, precio_unitario, fecha_venta, user_id, tipo_pago)
-                VALUES (?, ?, ?, NOW(), ?, ?);
-            `, [productId, quantity, unitPrice, userId, paymentType]);
+            await connection.query(
+                'INSERT INTO detalle_ventas (venta_id, producto_id, cantidad, precio_unitario, subtotal_linea) VALUES (?, ?, ?, ?, ?)',
+                [ventaId, productId, quantity, unitPrice, itemTotal]
+            );
 
-            // Descontar stock o insumos según la categoría
             if (categoryName === 'Platillos') {
-                // Obtener los insumos para este platillo
                 const [recipeInsumos] = await connection.query(
                     `SELECT r.insumo_id, r.cantidad_requerida, p.nombre_producto as insumo_nombre,
                             p.cantidad_disponible as insumo_stock_actual, p.unidad_medida as insumo_unidad_base
                      FROM recipes r
                      JOIN products p ON r.insumo_id = p.id
-                     WHERE r.platillo_id = ?`,
+                     WHERE r.platillo_id = ? FOR UPDATE`,
                     [productId]
                 );
 
@@ -585,12 +623,12 @@ app.post('/api/sales', async (req, res) => {
                     return res.status(400).json({ message: `Platillo "${productName}" no tiene receta definida. No se puede vender.` });
                 }
 
-                // Verificar y descontar cada insumo
                 for (const insumo of recipeInsumos) {
                     const requiredTotal = insumo.cantidad_requerida * quantity;
-                    if (insumo.insumo_stock_actual < requiredTotal) {
-                        await connection.rollback(); // Rollback si no hay suficiente stock
-                        return res.status(400).json({ message: `Stock insuficiente de "${insumo.insumo_nombre}" para vender "${productName}". Necesitas ${requiredTotal} ${insumo.insumo_unidad_base}, tienes ${insumo.insumo_stock_actual}.` });
+
+                    if (insumo.insumo_stock_actual === null || insumo.insumo_stock_actual < requiredTotal) {
+                        await connection.rollback();
+                        return res.status(400).json({ message: `Stock insuficiente de "${insumo.insumo_nombre}" para el platillo "${productName}". Necesitas ${requiredTotal} ${insumo.insumo_unidad_base}, tienes ${insumo.insumo_stock_actual || 0}.` });
                     }
                     await connection.query(
                         'UPDATE products SET cantidad_disponible = cantidad_disponible - ? WHERE id = ?',
@@ -598,17 +636,16 @@ app.post('/api/sales', async (req, res) => {
                     );
                 }
 
-            } else { // Es una Bebida o Insumo (si permites vender insumos directamente)
-                // Verificar stock directo
+            } else { // Si es una Bebida o cualquier otro producto que no sea platillo
                 const [productStock] = await connection.query(
-                    'SELECT cantidad_disponible FROM products WHERE id = ?',
+                    'SELECT cantidad_disponible FROM products WHERE id = ? FOR UPDATE',
                     [productId]
                 );
-                if (productStock.length === 0 || productStock[0].cantidad_disponible < quantity) {
-                    await connection.rollback(); // Rollback si no hay suficiente stock
+
+                if (productStock.length === 0 || productStock[0].cantidad_disponible === null || productStock[0].cantidad_disponible < quantity) {
+                    await connection.rollback();
                     return res.status(400).json({ message: `Stock insuficiente de "${productName}". Cantidad disponible: ${productStock[0] ? productStock[0].cantidad_disponible : 0}.` });
                 }
-                // Descontar stock directo
                 await connection.query(
                     'UPDATE products SET cantidad_disponible = cantidad_disponible - ? WHERE id = ?',
                     [quantity, productId]
@@ -616,149 +653,266 @@ app.post('/api/sales', async (req, res) => {
             }
         }
 
-        await connection.commit(); // Confirmar la transacción
-        res.status(201).json({ message: 'Venta registrada y stock actualizado exitosamente.' });
+        await connection.commit();
+        res.status(201).json({ message: 'Venta registrada y stock actualizado exitosamente.', ventaId: ventaId });
 
     } catch (err) {
-        await connection.rollback(); // Deshacer la transacción en caso de cualquier error
-        console.error('Error al registrar venta o actualizar stock:', err); // Log del error completo
+        if (connection) await connection.rollback();
+        console.error('Error al registrar venta o actualizar stock (backend):', err);
         res.status(500).json({ message: 'Error interno del servidor al procesar la venta.', error: err.message });
     } finally {
-        connection.release(); // Liberar la conexión de vuelta al pool
+        if (connection) connection.release();
     }
 });
 
 
-// 10. Ruta para registrar un movimiento de stock (ej. entrada de inventario, merma)
+// 10. Ruta para registrar un movimiento de stock
 app.post('/api/stock_movements', async (req, res) => {
     const { productId, movementType, quantity, userId, observations } = req.body;
     if (!productId || !movementType || quantity === undefined || !userId) {
         return res.status(400).json({ message: 'Faltan datos para registrar el movimiento de stock (producto, tipo, cantidad, usuario).' });
     }
+    if (isNaN(parseFloat(quantity)) || parseFloat(quantity) <= 0) {
+        return res.status(400).json({ message: 'La cantidad del movimiento debe ser un número positivo.' });
+    }
 
-    // Iniciar una transacción
-    const connection = await pool.getConnection();
+    let connection;
     try {
+        connection = await pool.getConnection();
         await connection.beginTransaction();
 
         await connection.query(`
             INSERT INTO stock_movements (product_id, tipo_movimiento, cantidad, fecha_movimiento, user_id, observaciones)
             VALUES (?, ?, ?, NOW(), ?, ?);
-        `, [productId, movementType, quantity, userId, observations || null]);
+        `, [productId, movementType, parseFloat(quantity), userId, observations || null]);
 
-        // Actualizar la cantidad disponible del producto según el tipo de movimiento
         let updateSql = '';
         if (movementType === 'entrada_compra' || movementType === 'ajuste_positivo') {
             updateSql = 'UPDATE products SET cantidad_disponible = cantidad_disponible + ? WHERE id = ?;';
-        } else if (movementType === 'salida_ajuste' || movementType === 'merma_caducidad' || movementType === 'merma_daño' || movementType === 'salida_venta') {
-            // Asegurarse de que no se descuente más de lo disponible para salidas
-            const [currentStock] = await connection.query('SELECT cantidad_disponible FROM products WHERE id = ?', [productId]);
-            if (currentStock.length === 0 || currentStock[0].cantidad_disponible < quantity) {
+        } else if (movementType === 'salida_ajuste' || movementType === 'merma_caducidad' || movementType === 'merma_daño') {
+            const [currentStock] = await connection.query('SELECT cantidad_disponible FROM products WHERE id = ? FOR UPDATE', [productId]);
+            if (currentStock.length === 0 || currentStock[0].cantidad_disponible === null || currentStock[0].cantidad_disponible < parseFloat(quantity)) {
                 await connection.rollback();
                 return res.status(400).json({ message: `No hay suficiente stock para este movimiento de salida. Cantidad disponible: ${currentStock[0] ? currentStock[0].cantidad_disponible : 0}.` });
             }
             updateSql = 'UPDATE products SET cantidad_disponible = cantidad_disponible - ? WHERE id = ?;';
+        } else {
+             await connection.rollback();
+             return res.status(400).json({ message: 'Tipo de movimiento de stock no reconocido.' });
         }
 
         if (updateSql) {
-            await connection.query(updateSql, [quantity, productId]);
+            await connection.query(updateSql, [parseFloat(quantity), productId]);
         }
 
         await connection.commit();
         res.status(201).json({ message: 'Movimiento de stock registrado exitosamente.' });
     } catch (err) {
-        await connection.rollback();
-        console.error('Error al registrar movimiento de stock:', err.message);
-        res.status(500).json({ message: 'Error interno del servidor al registrar movimiento de stock.', error: err.message });
+        if (connection) await connection.rollback();
+        console.error('Error al registrar movimiento de stock (backend):', err);
+        res.status(500).json({ message: 'Error interno del servidor al registrar el movimiento de stock.', error: err.message });
     } finally {
-        connection.release();
+        if (connection) connection.release();
     }
 });
 
+// --- Rutas de Usuarios (CRUD) ---
 
-// 11. Ruta para obtener todos los usuarios (para gestión de usuarios)
+// 11. Obtener todos los usuarios
 app.get('/api/users', async (req, res) => {
+    let connection;
     try {
-        const [users] = await pool.query('SELECT id, username, role, nombre_completo, email, activo FROM users');
-        res.json(users);
+        connection = await pool.getConnection();
+        // Excluir la contraseña al obtener todos los usuarios por seguridad
+        const [rows] = await connection.query('SELECT id, username, nombre_completo, email, role, activo FROM users ORDER BY username ASC');
+        res.json(rows);
     } catch (err) {
         console.error('Error al obtener usuarios:', err.message);
         res.status(500).json({ message: 'Error interno del servidor al obtener usuarios.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-// 12. Ruta para añadir un nuevo usuario
+// 12. Obtener un usuario por ID
+app.get('/api/users/:id', async (req, res) => {
+    const userId = req.params.id;
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        // No incluyas el password aquí por seguridad
+        const [rows] = await connection.query('SELECT id, username, nombre_completo, email, role, activo FROM users WHERE id = ?', [userId]);
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+        res.json(rows[0]);
+    } catch (err) {
+        console.error('Error al obtener usuario por ID:', err.message);
+        res.status(500).json({ message: 'Error interno del servidor al obtener usuario.' });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+// 13. Crear un nuevo usuario
 app.post('/api/users', async (req, res) => {
-    const { username, password, role, nombre_completo, email } = req.body;
+    const { username, password, nombre_completo, email, role, activo } = req.body;
+
     if (!username || !password || !role) {
-        return res.status(400).json({ message: 'Usuario, contraseña y rol son requeridos.' });
+        return res.status(400).json({ message: 'Usuario, contraseña y rol son obligatorios.' });
     }
+
+    let connection;
     try {
-        const [result] = await pool.query(
-            'INSERT INTO users (username, password, role, nombre_completo, email) VALUES (?, ?, ?, ?, ?)',
-            [username, password, role, nombre_completo || null, email || null]
-        );
-        res.status(201).json({ message: 'Usuario creado exitosamente.', id: result.insertId });
-    } catch (err) {
-        if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(409).json({ message: 'El nombre de usuario o email ya existe.' });
+        connection = await pool.getConnection();
+
+        // Verificar si el username ya existe
+        const [existingUsers] = await connection.query('SELECT id FROM users WHERE username = ?', [username]);
+        if (existingUsers.length > 0) {
+            return res.status(409).json({ message: 'El nombre de usuario ya está en uso.' });
         }
-        console.error('Error al crear usuario:', err.message);
-        res.status(500).json({ message: 'Error interno del servidor al crear usuario.' });
+
+        const hashedPassword = await bcrypt.hash(password, 10); // Hash de la contraseña con un salt de 10 rondas
+
+        const [result] = await connection.query(`
+            INSERT INTO users (username, password, nombre_completo, email, role, activo)
+            VALUES (?, ?, ?, ?, ?, ?);
+        `, [
+            username,
+            hashedPassword,
+            nombre_completo || null,
+            email || null,
+            role,
+            activo === undefined ? 1 : (activo ? 1 : 0) // Por defecto activo si no se especifica
+        ]);
+
+        res.status(201).json({ message: 'Usuario creado exitosamente.', userId: result.insertId });
+
+    } catch (err) {
+        console.error('Error al crear usuario:', err);
+        res.status(500).json({ message: 'Error interno del servidor al crear usuario.', error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-// 13. Ruta para actualizar un usuario
+// 14. Actualizar un usuario existente
 app.put('/api/users/:id', async (req, res) => {
-    const { id } = req.params;
-    const { username, password, role, nombre_completo, email, activo } = req.body;
+    const userId = req.params.id;
+    const { username, password, nombre_completo, email, role, activo } = req.body;
+
     if (!username || !role || activo === undefined) {
-        return res.status(400).json({ message: 'Usuario, rol y estado activo son requeridos.' });
+        return res.status(400).json({ message: 'Usuario, rol y estado activo son obligatorios.' });
     }
 
-    let sql = 'UPDATE users SET username = ?, role = ?, nombre_completo = ?, email = ?, activo = ?';
-    let params = [username, role, nombre_completo || null, email || null, activo];
-
-    if (password) {
-        sql += ', password = ?';
-        params.push(password);
-    }
-    sql += ' WHERE id = ?';
-    params.push(id);
-
+    let connection;
     try {
-        const [result] = await pool.query(sql, params);
+        connection = await pool.getConnection();
+
+        // Verificar si el nuevo username ya existe en otro usuario
+        const [existingUsers] = await connection.query('SELECT id FROM users WHERE username = ? AND id != ?', [username, userId]);
+        if (existingUsers.length > 0) {
+            return res.status(409).json({ message: 'El nombre de usuario ya está en uso por otro usuario.' });
+        }
+
+        let updateQuery = `
+            UPDATE users SET
+                username = ?,
+                nombre_completo = ?,
+                email = ?,
+                role = ?,
+                activo = ?
+        `;
+        const params = [username, nombre_completo || null, email || null, role, activo ? 1 : 0];
+
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            updateQuery += ', password = ?';
+            params.push(hashedPassword);
+        }
+
+        updateQuery += ' WHERE id = ?';
+        params.push(userId);
+
+        const [result] = await connection.query(updateQuery, params);
+
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
+
         res.status(200).json({ message: 'Usuario actualizado exitosamente.' });
+
     } catch (err) {
-        if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(409).json({ message: 'El nombre de usuario o email ya existe.' });
-        }
-        console.error('Error al actualizar usuario:', err.message);
-        res.status(500).json({ message: 'Error interno del servidor al actualizar usuario.' });
+        console.error('Error al actualizar usuario:', err);
+        res.status(500).json({ message: 'Error interno del servidor al actualizar usuario.', error: err.message });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
-// 14. Ruta para eliminar un usuario
+// 15. Desactivar un usuario (soft delete)
 app.delete('/api/users/:id', async (req, res) => {
-    const { id } = req.params;
+    const userId = req.params.id;
+    let connection;
     try {
-        const [result] = await pool.query('DELETE FROM users WHERE id = ?', [id]);
+        connection = await pool.getConnection();
+        const [result] = await connection.query('UPDATE users SET activo = 0 WHERE id = ?', [userId]);
+
         if (result.affectedRows === 0) {
-            return res.status(404).json({ message: 'Usuario no encontrado.' });
+            return res.status(404).json({ message: 'Usuario no encontrado o ya estaba inactivo.' });
         }
-        res.status(200).json({ message: 'Usuario eliminado exitosamente.' });
+        res.status(200).json({ message: 'Usuario desactivado exitosamente.' });
     } catch (err) {
-        console.error('Error al eliminar usuario:', err.message);
-        res.status(500).json({ message: 'Error interno del servidor al eliminar usuario.' });
+        console.error('Error al desactivar usuario:', err);
+        res.status(500).json({ message: 'Error interno del servidor al desactivar usuario.', error: err.message });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+// --- Rutas para Reportes ---
+// Ruta para obtener ventas por rango de fechas
+app.get('/api/reports/sales-by-date', async (req, res) => {
+    const { startDate, endDate } = req.query;
+
+    if (!startDate || !endDate) {
+        return res.status(400).json({ message: 'Se requieren fechas de inicio y fin para el reporte de ventas.' });
+    }
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+
+        const query = `
+            SELECT
+                v.id,
+                v.fecha_venta,
+                v.total,
+                v.tipo_pago,
+                u.username as cajero_username
+            FROM
+                ventas v
+            JOIN
+                users u ON v.usuario_id = u.id
+            WHERE
+                v.fecha_venta BETWEEN ? AND ?
+            ORDER BY
+                v.fecha_venta ASC;
+        `;
+
+        const [results] = await connection.execute(query, [startDate + ' 00:00:00', endDate + ' 23:59:59']);
+        res.json(results);
+
+    } catch (err) {
+        console.error('Error al obtener reporte de ventas por fecha:', err);
+        res.status(500).json({ message: 'Error interno del servidor al generar el reporte.' });
+    } finally {
+        if (connection) connection.release();
     }
 });
 
 
 // Iniciar el servidor
 app.listen(PORT, () => {
-    console.log(`Servidor backend corriendo en http://localhost:${PORT}`);
-    console.log(`Frontend disponible en http://localhost:${PORT}/index.html`);
+    console.log(`Servidor de El Marro ejecutándose en http://localhost:${PORT}`);
 });

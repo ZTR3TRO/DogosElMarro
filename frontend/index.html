@@ -358,8 +358,18 @@
                 const data = await response.json();
 
                 if (response.ok) { // Si la respuesta HTTP es exitosa (200-299)
+                    // *** AQUÍ ESTÁ EL CAMBIO CLAVE: GUARDAR EL USUARIO EN LOCALSTORAGE ***
+                    // 'data.user' es el objeto user que tu backend devuelve al iniciar sesión
+                    localStorage.setItem('currentUser', JSON.stringify(data.user)); 
+                    
+                    // Ahora redirige basado en el rol si es necesario, o directamente al dashboard
+                    // Si tienes diferentes dashboards por rol, puedes añadir lógica aquí:
+                    if (data.user.role === 'admin') {
+                        window.location.href = 'users.html'; // Si es admin, ve a gestión de usuarios
+                    } else {
+                        window.location.href = 'dashboard.html'; // Para otros roles, ve al dashboard general
+                    }
                     // console.log(data.message || '¡Bienvenido al sistema El Amaro!'); // Puedes dejar esto para depuración
-                    window.location.href = 'dashboard.html'; // Redirige al dashboard.html
                 } else {
                     // Si la respuesta no fue exitosa (ej. 401 Unauthorized, 400 Bad Request)
                     errorMessageElement.textContent = data.message || 'Error al iniciar sesión. Verifica tus credenciales.';

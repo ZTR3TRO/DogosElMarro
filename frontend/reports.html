@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes - El Marro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* CSS COPIADO DIRECTAMENTE DE TUS OTROS HTML PARA CONSISTENCIA */
+        :root {
+            --primary-color: #ff6b35; /* Naranja hotdog */
+            --secondary-color: #f7931e; /* Naranja más claro */
+            --accent-color: #ffcc02; /* Amarillo */
+            --dark-color: #333;
+            --light-color: #f4f4f4;
+            --white-color: #fff;
+            --sidebar-width: 250px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--light-color);
+            min-height: 100vh;
+            color: var(--dark-color);
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
+            color: var(--white-color);
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+        }
+
+        .sidebar .logo-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .sidebar .logo {
+            width: 80px;
+            height: 80px;
+            background-color: var(--white-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 40px;
+            color: var(--primary-color);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar .brand-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--white-color);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar nav ul {
+            list-style: none;
+            flex-grow: 1;
+        }
+
+        .sidebar nav ul li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar nav ul li a {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: var(--white-color);
+            text-decoration: none;
+            font-size: 16px;
+            border-radius: 8px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+
+        .sidebar nav ul li a span {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+
+        .sidebar nav ul li a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .sidebar nav ul li a.active {
+            background-color: var(--accent-color);
+            color: var(--dark-color);
+            font-weight: 700;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .logout-button {
+            background-color: #f44336; /* Color rojo para cerrar sesión */
+            color: var(--white-color);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            text-align: center;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .logout-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 30px;
+            background-color: var(--light-color);
+            overflow-y: auto;
+            margin-left: var(--sidebar-width);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: var(--dark-color);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            font-size: 16px;
+        }
+
+        .user-info span {
+            margin-right: 10px;
+            color: #555;
+        }
+
+        /* --- Estilos específicos para las tarjetas y formularios --- */
+        .content-area {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        .card {
+            background-color: var(--white-color);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+
+        .card-header h2 {
+            font-size: 22px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .card-header h2 i {
+            margin-right: 10px;
+            font-size: 28px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-control, .form-select {
+            display: block;
+            width: 100%;
+            padding: 10px 15px;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #495057;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #ced4da;
+            border-radius: .25rem;
+            transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+        }
+
+        .form-control:focus, .form-select:focus {
+            color: #495057;
+            background-color: #fff;
+            border-color: var(--primary-color);
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(255, 107, 53, 0.25);
+        }
+
+        .btn {
+            display: inline-block;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--white-color);
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            user-select: none;
+            background-color: transparent;
+            border: 1px solid transparent;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: .25rem;
+            transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+        }
+
+        .btn-primary {
+            color: var(--white-color);
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #e65c2b;
+            border-color: #e65c2b;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        /* Styles for table, etc. */
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: var(--dark-color);
+            border-collapse: collapse;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6;
+            background-color: var(--primary-color);
+            color: var(--white-color);
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .table-hover tbody tr:hover {
+            color: var(--dark-color);
+            background-color: rgba(0, 0, 0, 0.075);
+        }
+
+        .text-end { text-align: right; }
+        .text-center { text-align: center; }
+        .text-muted { color: #6c757d; }
+        .text-danger { color: #dc3545; }
+        .text-success { color: #28a745; }
+        .fw-bold { font-weight: 700; }
+        .mt-2 { margin-top: 0.5rem !important; }
+        .mt-3 { margin-top: 1rem !important; }
+        .mt-4 { margin-top: 1.5rem !important; }
+        .mb-3 { margin-bottom: 1rem !important; }
+        .mb-4 { margin-bottom: 1.5rem !important; }
+        .w-100 { width: 100% !important; }
+
+        /* Estilos para Toast y Modales (copiados de users.html) */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1050;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .toast {
+            background-color: #333;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            transform: translateX(100%);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            min-width: 250px;
+            display: flex;
+            align-items: center;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        .toast.hide {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        .toast.success { background-color: #28a745; }
+        .toast.error { background-color: #dc3545; }
+        .toast.warning { background-color: #ffc107; color: #333;}
+        .toast.info { background-color: #17a2b8; }
+        .toast i { margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo-section">
+            <div class="logo">📊</div>
+            <h1 class="brand-name">El Marro</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="dashboard.html"><span>🏠</span> Dashboard</a></li>
+                <li><a href="inventory.html"><span>📦</span> Inventario</a></li>
+                <li><a href="sales.html"><span>💰</span> Punto de Venta</a></li>
+                <li><a href="users.html"><span>👥</span> Usuarios</a></li>
+                <li class="active"><a href="reports.html"><span>📊</span> Reportes</a></li>
+            </ul>
+        </nav>
+        <button class="logout-button" id="logoutButton">Cerrar Sesión</button>
+    </aside>
+
+    <main class="main-content">
+        <header class="header">
+            <h1 id="welcomeMessage">Reportes de Ventas</h1>
+            <div class="user-info">
+                <span id="userInfoName">Hola, Usuario</span>
+            </div>
+        </header>
+
+        <div class="content-area">
+            <section class="card mb-4">
+                <div class="card-header">
+                    <h2><i class="fas fa-calendar-alt"></i> Reporte de Ventas por Rango de Fechas</h2>
+                </div>
+                <div class="card-body">
+                    <form id="salesReportForm">
+                        <div class="form-group">
+                            <label for="startDate" class="form-label">Fecha de Inicio:</label>
+                            <input type="date" class="form-control" id="startDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="endDate" class="form-label">Fecha de Fin:</label>
+                            <input type="date" class="form-control" id="endDate" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3"><i class="fas fa-play"></i> Generar Reporte</button>
+                    </form>
+                </div>
+            </section>
+
+            <section class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-bar"></i> Resultados del Reporte</h2>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID Venta</th>
+                                <th>Fecha</th>
+                                <th>Total</th>
+                                <th>Método de Pago</th>
+                                <th>ID Cajero</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr><td colspan="5" class="text-center text-muted">Selecciona un rango de fechas y genera el reporte.</td></tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="2" class="text-end">Total General:</th>
+                                <th id="totalSalesAmount" class="text-success fw-bold">0.00</th>
+                                <th colspan="2"></th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script>
+        // --- Variables y Utilidades Comunes (copiadas de users.html para consistencia) ---
+        const showToast = (type, message, duration = 3000) => {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i><span>${message}</span>`;
+            toastContainer.appendChild(toast);
+
+            setTimeout(() => { toast.classList.add('show'); }, 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.classList.add('hide');
+                toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+            }, duration);
+        };
+        // No necesitamos modales para este reporte simple, así que no se incluyen showConfirmModal o closeModal.
+
+        // --- Lógica de Autenticación para Reportes ---
+        let currentUser = null; // Variable para almacenar el usuario loggeado
+
+        const checkLogin = () => {
+            const loggedInUserStr = localStorage.getItem('currentUser');
+
+            if (!loggedInUserStr) {
+                showToast('error', 'No has iniciado sesión. Redirigiendo...');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+                return false;
+            }
+
+            try {
+                currentUser = JSON.parse(loggedInUserStr);
+                
+                if (!currentUser || !currentUser.username || !currentUser.role) {
+                    showToast('error', 'Información de usuario incompleta o corrupta. Redirigiendo...');
+                    localStorage.removeItem('currentUser');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1500);
+                    return false;
+                }
+
+                // Restricción: Solo administradores y gerentes pueden acceder a esta página
+                if (currentUser.role !== 'admin' && currentUser.role !== 'gerente') {
+                    showToast('error', 'Acceso denegado. Solo administradores y gerentes pueden ver reportes.');
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html'; // Redirigir a una página permitida
+                    }, 1500);
+                    return false;
+                }
+
+                document.getElementById('userInfoName').textContent = `Hola, ${currentUser.username}`;
+                document.getElementById('welcomeMessage').textContent = `Reportes - ${currentUser.username}`;
+                return true;
+            } catch (e) {
+                console.error("Error parsing currentUser from localStorage:", e);
+                showToast('error', 'Error al leer la sesión. Redirigiendo...');
+                localStorage.removeItem('currentUser');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+                return false;
+            }
+        };
+
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', () => {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+            });
+        }
+
+        // --- Lógica Específica para Reportes ---
+        const salesReportForm = document.getElementById('salesReportForm');
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        const reportTableBody = document.getElementById('reportTableBody');
+        const totalSalesAmount = document.getElementById('totalSalesAmount');
+
+        // Establecer las fechas por defecto a hoy y el primer día del mes
+        const today = new Date();
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        startDateInput.value = firstDayOfMonth.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+        endDateInput.value = today.toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+        salesReportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+
+            if (!startDate || !endDate) {
+                showToast('error', 'Por favor, selecciona una fecha de inicio y una fecha de fin.');
+                return;
+            }
+            if (new Date(startDate) > new Date(endDate)) {
+                showToast('error', 'La fecha de inicio no puede ser posterior a la fecha de fin.');
+                return;
+            }
+
+            reportTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Generando reporte...</td></tr>';
+            totalSalesAmount.textContent = '0.00';
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/reports/sales-by-date?startDate=${startDate}&endDate=${endDate}`);
+                
+                if (!response.ok) {
+                     if (response.status === 400) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Datos de reporte inválidos.');
+                    }
+                    throw new Error(`Error al cargar datos del reporte: ${response.statusText}`);
+                }
+
+                const salesData = await response.json();
+                renderSalesReport(salesData);
+
+            } catch (error) {
+                console.error('Error al generar reporte de ventas:', error);
+                reportTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error al generar el reporte.</td></tr>';
+                showToast('error', `Error: ${error.message}`);
+            }
+        });
+
+        const renderSalesReport = (sales) => {
+            reportTableBody.innerHTML = '';
+            let totalGeneral = 0;
+
+            if (sales.length === 0) {
+                reportTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No se encontraron ventas para el rango de fechas seleccionado.</td></tr>';
+                totalSalesAmount.textContent = '0.00';
+                return;
+            }
+
+            sales.forEach(sale => {
+                const row = reportTableBody.insertRow();
+                // Formatear la fecha para que se vea bien
+                const saleDate = new Date(sale.fecha_venta).toLocaleDateString('es-MX', { 
+                    year: 'numeric', month: 'numeric', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                const saleTotal = parseFloat(sale.total || 0).toFixed(2); // Asegurar 2 decimales
+                totalGeneral += parseFloat(sale.total || 0);
+
+                row.innerHTML = `
+                    <td>${sale.id}</td>
+                    <td>${saleDate}</td>
+                    <td>$${saleTotal}</td>
+                    <td>${sale.metodo_pago || 'N/A'}</td>
+                    <td>${sale.id_usuario || 'N/A'}</td>
+                `;
+            });
+            totalSalesAmount.textContent = `$${totalGeneral.toFixed(2)}`;
+            showToast('success', `Reporte generado con ${sales.length} ventas. Total: $${totalGeneral.toFixed(2)}`);
+        };
+
+        // --- Inicialización ---
+        document.addEventListener('DOMContentLoaded', () => {
+            if (checkLogin()) { 
+                // Opcional: Generar el reporte inicial al cargar la página con las fechas por defecto
+                salesReportForm.dispatchEvent(new Event('submit')); 
+            }
+        });
+    </script>
+</body>
+</html>
