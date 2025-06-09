@@ -14,7 +14,6 @@ app.use(cors()); // Habilita CORS para permitir peticiones desde el frontend
 app.use(bodyParser.json()); // Para parsear el cuerpo de las peticiones como JSON
 
 // Sirve archivos estáticos del frontend desde la carpeta 'frontend' que está un nivel arriba.
-// Esto es útil si abres el HTML directamente o usas un servidor simple para servir el frontend.
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // --- Rutas de la API ---
@@ -94,7 +93,7 @@ app.get('/api/inventory/summary', async (req, res) => {
         summary.dailySales = parseFloat(dailySalesResult[0].total) || 0;
 
         const [lowStockResult] = await connection.query(`
-            SELECT p.id, p.nombre_producto, p.cantidad_disponible, p.stock_minimo, c.nombre_categoria
+            SELECT p.id, p.nombre_producto, p.cantidad_disponible, p.stock_minimo, p.unidad_medida, c.nombre_categoria
             FROM products p
             JOIN categories c ON p.categoria_id = c.id
             WHERE p.cantidad_disponible <= p.stock_minimo
@@ -264,8 +263,8 @@ app.post('/api/inventory', async (req, res) => {
         }
 
         const [result] = await connection.query(`
-            INSERT INTO products (nombre_producto, descripcion, categoria_id, unidad_medida, precio_compra, precio_venta, cantidad_disponible, stock_minimo, fecha_caducidad, activo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1);
+            INSERT INTO products (nombre_producto, descripcion, categoria_id, unidad_medida, precio_compra, precio_venta, cantidad_disponible, stock_minimo, fecha_caducidad, activo, ultima_actualizacion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW());
         `, [
             nombre_producto,
             descripcion || null,
@@ -333,7 +332,8 @@ app.put('/api/inventory/:id', async (req, res) => {
                 cantidad_disponible = ?,
                 stock_minimo = ?,
                 fecha_caducidad = ?,
-                activo = ?
+                activo = ?,
+                ultima_actualizacion = NOW() -- AÑADIDO: Actualiza la fecha de última actualización
             WHERE id = ?;
         `, [
             nombre_producto,
@@ -688,14 +688,14 @@ app.post('/api/stock_movements', async (req, res) => {
 
         let updateSql = '';
         if (movementType === 'entrada_compra' || movementType === 'ajuste_positivo') {
-            updateSql = 'UPDATE products SET cantidad_disponible = cantidad_disponible + ? WHERE id = ?;';
+            updateSql = 'UPDATE products SET cantidad_disponible = cantidad_disponible + ?, ultima_actualizacion = NOW() WHERE id = ?;';
         } else if (movementType === 'salida_ajuste' || movementType === 'merma_caducidad' || movementType === 'merma_daño') {
             const [currentStock] = await connection.query('SELECT cantidad_disponible FROM products WHERE id = ? FOR UPDATE', [productId]);
             if (currentStock.length === 0 || currentStock[0].cantidad_disponible === null || currentStock[0].cantidad_disponible < parseFloat(quantity)) {
                 await connection.rollback();
                 return res.status(400).json({ message: `No hay suficiente stock para este movimiento de salida. Cantidad disponible: ${currentStock[0] ? currentStock[0].cantidad_disponible : 0}.` });
             }
-            updateSql = 'UPDATE products SET cantidad_disponible = cantidad_disponible - ? WHERE id = ?;';
+            updateSql = 'UPDATE products SET cantidad_disponible = cantidad_disponible - ?, ultima_actualizacion = NOW() WHERE id = ?;';
         } else {
              await connection.rollback();
              return res.status(400).json({ message: 'Tipo de movimiento de stock no reconocido.' });

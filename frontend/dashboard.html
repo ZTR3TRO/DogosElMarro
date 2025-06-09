@@ -20,7 +20,7 @@
         * {
             margin: 0;
             padding: 0;
-            box-sizing: border;
+            box-sizing: border-box; /* Corregido: box-sizing */
         }
 
         body {
@@ -157,6 +157,7 @@
             padding: 25px;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid transparent; /* Añadido para controlar el borde de alerta */
         }
 
         .card:hover {
@@ -310,23 +311,25 @@
         <section class="dashboard-grid">
             <div class="card">
                 <h2><span>📦</span> Productos Totales</h2>
-                <p>Cantidad total de productos registrados en el sistema.</p>
+                <p>Cantidad total de productos activos registrados en el sistema.</p>
                 <p class="metric-value" id="totalProductsValue">Cargando...</p>
             </div>
             <div class="card">
                 <h2><span>📈</span> Ventas del Día</h2>
-                <p>Resumen de las ventas de hoy.</p>
+                <p>Resumen de las ventas totales de hoy.</p>
                 <p class="metric-value" id="dailySalesValue">Cargando...</p>
             </div>
             <div class="card" id="lowStockCard">
-                <h2><span>⚠️</span> Stock Mínimo</h2>
-                <p>Productos con niveles de stock por debajo del mínimo establecido.</p>
-                <p class="metric-value" id="lowStockValue">Cargando...</p>
+                <h2><span>⚠️</span> Producto con Menos Stock</h2>
+                <p>Insumo o bebida con menor cantidad disponible (no agotado).</p>
+                <ul id="lowStockList">
+                    <li>Cargando...</li>
+                </ul>
             </div>
             
             <div class="card" id="expiringProductsCard">
                 <h2><span>⏳</span> Próximos a Caducar</h2>
-                <p>Productos cuya fecha de caducidad está cerca.</p>
+                <p>Productos cuya fecha de caducidad está cerca (próximos 7 días).</p>
                 <ul id="expiringProductsList">
                     <li>Cargando...</li>
                 </ul>
@@ -344,7 +347,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const totalProductsValue = document.getElementById('totalProductsValue');
             const dailySalesValue = document.getElementById('dailySalesValue');
-            const lowStockValue = document.getElementById('lowStockValue');
+            const lowStockList = document.getElementById('lowStockList'); // Cambiado a lista
             const lastSaleValue = document.getElementById('lastSaleValue');
             const expiringProductsList = document.getElementById('expiringProductsList');
             const welcomeMessage = document.getElementById('welcomeMessage');
@@ -360,7 +363,13 @@
                 }).format(amount);
             };
 
-            // --- Función para formatear fechas ---
+            // --- Función para formatear fechas y horas ---
+            const formatDateTime = (dateString) => {
+                const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                return new Date(dateString).toLocaleDateString('es-MX', options);
+            };
+
+            // --- Función para formatear solo fechas ---
             const formatDate = (dateString) => {
                 const options = { year: 'numeric', month: 'short', day: 'numeric' };
                 return new Date(dateString).toLocaleDateString('es-MX', options);
@@ -373,6 +382,7 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
+                console.log('Datos recibidos del backend:', data); // Para depuración
 
                 // Actualizar Tarjeta de Productos Totales
                 totalProductsValue.textContent = data.totalProducts !== undefined ? data.totalProducts : 'N/A';
@@ -380,35 +390,43 @@
                 // Actualizar Tarjeta de Ventas del Día
                 dailySalesValue.textContent = formatCurrency(data.dailySales !== undefined ? data.dailySales : 0);
 
-                // Actualizar Tarjeta de Stock Mínimo
-                lowStockValue.textContent = data.lowStock !== undefined ? data.lowStock : 'N/A';
-                if (data.lowStock > 0) {
-                    document.getElementById('lowStockCard').style.borderColor = 'red'; // Puedes añadir más estilos de alerta
+                // Actualizar Tarjeta de Producto con Menos Stock (Low Stock)
+                lowStockList.innerHTML = ''; // Limpiar
+                if (data.lowStockProduct) {
+                    const product = data.lowStockProduct;
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML = `<strong>${product.nombre_producto}</strong><br>
+                                          Stock: ${product.cantidad_disponible} ${product.unidad_medida || 'unid.'} (Mínimo: ${product.stock_minimo})`;
+                    lowStockList.appendChild(listItem);
+                    document.getElementById('lowStockCard').style.borderColor = '#dc3545'; // Rojo de alerta
                 } else {
-                     document.getElementById('lowStockCard').style.borderColor = ''; // Restablecer
+                    const listItem = document.createElement('li');
+                    listItem.textContent = '¡Ningún producto en stock mínimo!';
+                    lowStockList.appendChild(listItem);
+                    document.getElementById('lowStockCard').style.borderColor = ''; // Restablecer
                 }
-
+                
 
                 // Actualizar Tarjeta de Última Venta
-                if (data.lastSale && data.lastSale.productName) {
-                    lastSaleValue.innerHTML = `<strong>Producto:</strong> ${data.lastSale.productName}<br>`;
-                    lastSaleValue.innerHTML += `<strong>Cajero:</strong> ${data.lastSale.cajero || 'N/A'}<br>`; // Mostrar cajero
-                    lastSaleValue.innerHTML += `<strong>Fecha:</strong> ${formatDate(data.lastSale.saleDate)}<br>`;
-                    lastSaleValue.innerHTML += `<strong>Total:</strong> ${formatCurrency(data.lastSale.totalAmount)}`;
+                if (data.lastSale) {
+                    const sale = data.lastSale;
+                    lastSaleValue.innerHTML = `<strong>ID Venta:</strong> ${sale.venta_id}<br>`;
+                    lastSaleValue.innerHTML += `<strong>Cajero:</strong> ${sale.cajero || 'N/A'}<br>`;
+                    lastSaleValue.innerHTML += `<strong>Fecha:</strong> ${formatDateTime(sale.fecha_venta)}<br>`;
+                    lastSaleValue.innerHTML += `<strong>Total:</strong> ${formatCurrency(sale.total)}`;
                 } else {
                     lastSaleValue.textContent = 'No hay ventas recientes.';
                 }
 
                 // Actualizar Tarjeta de Productos a Caducar
-                expiringProductsList.innerHTML = ''; // Limpiar "Cargando..."
+                expiringProductsList.innerHTML = ''; // Limpiar
                 if (data.productsExpiringSoon && data.productsExpiringSoon.length > 0) {
                     data.productsExpiringSoon.forEach(product => {
                         const listItem = document.createElement('li');
-                        // AJUSTE CLAVE AQUÍ: Cambiamos product.productName a product.nombre_producto
                         listItem.innerHTML = `<strong>${product.nombre_producto}</strong> - Vence el ${formatDate(product.fecha_caducidad)} (Quedan ${product.cantidad_disponible} unid.)`;
                         expiringProductsList.appendChild(listItem);
                     });
-                     document.getElementById('expiringProductsCard').style.borderColor = 'orange'; // Estilo de alerta
+                     document.getElementById('expiringProductsCard').style.borderColor = '#ffcc02'; // Amarillo/Naranja de alerta
                 } else {
                     const listItem = document.createElement('li');
                     listItem.textContent = '¡Ningún producto próximo a caducar!';
@@ -416,15 +434,25 @@
                     document.getElementById('expiringProductsCard').style.borderColor = ''; // Restablecer
                 }
 
-                // Actualizar mensaje de bienvenida (ejemplo estático por ahora)
-                welcomeMessage.textContent = 'Bienvenido Marro'; // Puedes cambiar esto por el nombre del usuario logeado
-                userInfoName.textContent = 'Hola, Admin'; // Puedes cambiar esto por el nombre del usuario logeado
+                // Actualizar mensaje de bienvenida y nombre de usuario
+                // Aquí deberías obtener el nombre de usuario del localStorage o de tu sistema de autenticación
+                const storedUser = JSON.parse(localStorage.getItem('user'));
+                if (storedUser && storedUser.nombre_completo) {
+                    welcomeMessage.textContent = `Bienvenido ${storedUser.nombre_completo.split(' ')[0]}`; // Solo el primer nombre
+                    userInfoName.textContent = `Hola, ${storedUser.nombre_completo}`;
+                } else if (storedUser && storedUser.username) {
+                     welcomeMessage.textContent = `Bienvenido ${storedUser.username}`;
+                     userInfoName.textContent = `Hola, ${storedUser.username}`;
+                } else {
+                    welcomeMessage.textContent = 'Bienvenido Usuario';
+                    userInfoName.textContent = 'Hola, Usuario';
+                }
 
             } catch (error) {
                 console.error('Error al cargar los datos del dashboard:', error);
                 totalProductsValue.textContent = 'Error';
                 dailySalesValue.textContent = 'Error';
-                lowStockValue.textContent = 'Error';
+                lowStockList.innerHTML = '<li>Error al cargar stock.</li>';
                 lastSaleValue.textContent = 'Error';
                 expiringProductsList.innerHTML = '<li>Error al cargar productos.</li>';
                 welcomeMessage.textContent = 'Error al cargar';
@@ -433,11 +461,8 @@
 
             // --- Funcionalidad de Cerrar Sesión ---
             logoutButton.addEventListener('click', () => {
-                // Aquí, en una aplicación real, borrarías cualquier token o sesión del localStorage/sessionStorage
-                // localStorage.removeItem('authToken'); 
-                // sessionStorage.clear(); // O limpiar todo si usas sessionStorage
-
-                alert('Sesión cerrada correctamente.'); // Mensaje simple, puedes mejorar esto
+                localStorage.removeItem('user'); // Borrar información del usuario del localStorage
+                alert('Sesión cerrada correctamente.');
                 window.location.href = 'index.html'; // Redirigir a la pantalla de login
             });
         });
